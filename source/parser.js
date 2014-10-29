@@ -419,7 +419,7 @@ Parser.prototype = {
 
             if (token.isHelperAlternate()) {
                 // Go to closing brace of else statement
-                token = this.token().next().next();
+                token = this.token().next();
 
                 if (!token.isBraceClose()) {
                     return this.error(token);

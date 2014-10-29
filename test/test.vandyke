@@ -1,4 +1,4 @@
-<div name="test-name" class={"my-class-" + name + " extended"} ctx={#if data} "test" + {#unless v} " error" {/unless} {:else} "foo" {/if}>
+<div name="test-name" class={"my-class-" + name + " extended"} ctx={#if data} "test" + {#unless v} " error" {/unless} {else} "foo" {/if}>
 {#if data}
     <Avatar onClick={handle}/>
 {/if}

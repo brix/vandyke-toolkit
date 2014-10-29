@@ -100,8 +100,7 @@ Token.prototype = {
         var prev = this.context[this.context.indexOf(this) - 1],
             next = this.context[this.context.indexOf(this) + 1];
 
-        return this.type === 'Punctuator' && this.value === ':' && prev && prev.isBraceOpen() &&
-            next.type === 'Word' && next.value === 'else';
+        return this.type === 'Word' && this.value === 'else' && prev && prev.isBraceOpen();
     },
 
     isHelperClosing: function () {
