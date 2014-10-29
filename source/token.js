@@ -1,10 +1,11 @@
 /*global require, exports, module*/
 
-function Token(context, type, value, range) {
+function Token(context, type, value, range, loc) {
     this.context = context;
     this.type = type;
     this.value = value;
     this.range = range;
+    this.loc = loc;
 };
 
 Token.prototype = {
@@ -112,9 +113,13 @@ Token.prototype = {
     },
     
     isTextSnippet: function () {
-        return this.type !== 'Punctuator' || 
-            (this.type === 'Punctuator' && this.value !== '{') || 
-            (this.type === 'Punctuator' && this.value !== '<')
+        return (
+            this.type !== 'Punctuator' || 
+            (
+                this.type === 'Punctuator' && this.value !== '{' && 
+                this.type === 'Punctuator' && this.value !== '<'
+            )
+        );
     },
 
     fromTo: function (tokenFrom, tokenTo) {

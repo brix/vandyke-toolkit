@@ -11,42 +11,93 @@ function Tokenizer(tokens) {
 };
 
 Tokenizer.parse = function parse(content) {
-    var context, range, error, i, l;
+    var context, pos, error, i, l;
 
     context = new Tokenizer();
-    range = 0;
+    pos = {
+        range: 0,
+        line: 0,
+        column: 0
+    };
 
-    while (content.length) {
-        for (i = 0, l = Tokenizer._tokenList.length; i <= l; i++) {
+    content.replace(/(^|\r?\n|\r)([^\r\n]*)/g, function (_, br, line) {
+        // Handle line break token
+        pos.range = pos.range + br.length;
+        pos.column = pos.column + br.length;
 
-            if (i >= l) {
-                error = 'Unxpected token' + content.substr(0, 10);
-                content = '';
-                break;
-                throw(error);
-            }
+        if (br) {
+            context.push(new Token(
+                context,
+                'LineBreak',
+                br,
+                [
+                    pos.range - br.length,
+                    pos.range - 1
+                ],
+                {
+                    start: {
+                        line: pos.line,
+                        column: pos.column - br.length
+                    },
+                    end: {
+                        line: pos.line,
+                        column: pos.column - 1
+                    }
+                }
+            ));
+        }
 
-            if (Tokenizer._tokens[Tokenizer._tokenList[i]].test(content)) {
-                content = content.replace(Tokenizer._tokens[Tokenizer._tokenList[i]], function (value) {
-                    // Increment range
-                    range = range + value.length;
+        // Clear position for new line
+        pos.column = 0;
+        pos.line += 1;
 
-                    // Add token
-                    context.push(new Token(
-                        context,
-                        Tokenizer._tokenList[i],
-                        value, [range - value.length,
-                        range - 1]
-                    ));
+        // Parse tokens for current line
+        while (line.length) {
+            for (i = 0, l = Tokenizer._tokenList.length; i <= l; i++) {
 
-                    // Slice content
-                    return '';
-                });
+                if (i >= l) {
+                    error = 'Unxpected token' + line.substr(0, 10);
+                    line = '';
+                    break;
+                    throw(error);
+                }
 
-                break;
+                if (Tokenizer._tokens[Tokenizer._tokenList[i]].test(line)) {
+                    line = line.replace(Tokenizer._tokens[Tokenizer._tokenList[i]], function (value) {
+                        // Increment range
+                        pos.range = pos.range + value.length;
+                        pos.column = pos.column + value.length;
+
+                        // Add token
+                        context.push(new Token(
+                            context,
+                            Tokenizer._tokenList[i],
+                            value,
+                            [
+                                pos.range - value.length,
+                                pos.range - 1
+                            ],
+                            {
+                                start: {
+                                    line: pos.line,
+                                    column: pos.column - value.length
+                                },
+                                end: {
+                                    line: pos.line,
+                                    column: pos.column - 1
+                                }
+                            }
+                        ));
+
+                        // Slice line
+                        return '';
+                    });
+
+                    break;
+                }
             }
         }
-    }
+    });
 
     return context;
 };
@@ -65,7 +116,7 @@ Tokenizer.register = function register(id, reg) {
 Tokenizer.prototype = new Array();
 
 Tokenizer.prototype.token = function (token) {
-    if (arguments.length) {
+    if (arguments.length && token) {
         this.index = this.indexOf(token.token ? token.token() : token);
     }
 
