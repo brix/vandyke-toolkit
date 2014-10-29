@@ -363,6 +363,7 @@ Parser.prototype = {
 
         node.value = '';
 
+/*
         while (node.value) {
             if (token.isTextSnippet()) {
                 node.value += token.value;
@@ -374,6 +375,7 @@ Parser.prototype = {
 
             token = this.token().next();
         }
+*/
         
         return node;
     },
@@ -390,7 +392,8 @@ Parser.prototype = {
             } else if (token.type === 'Punctuator' && token.value === '<') {
                 node.body.push(this.Element());
             } else if (token.isTextSnippet()) {
-                node.body.push(this.Text());
+                //node.body.push(this.Text());
+                break;
             } else {
                 break;
             }
