@@ -1,7 +1,6 @@
 /*global require, exports, module*/
 
-var Token = require('./token'),
-    is = require('./is');
+var Token = require('./token');
 
 function Tokenizer(tokens) {
     if (typeof tokens === 'string') {

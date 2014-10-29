@@ -1,7 +1,5 @@
 /*global require, exports, module*/
 
-var is = require('./is');
-
 function Token(context, type, value, range) {
     this.context = context;
     this.type = type;
