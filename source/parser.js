@@ -45,7 +45,7 @@ Parser.prototype = {
     detect: function () {
         var token = this.token(),
 
-            types = ['Element', 'Helper', 'Expression', 'Identifier', 'String', 'JavaScript', 'Text'],
+            types = ['Element', 'Helper', 'Expression', 'Data', 'String', 'JavaScript', 'Text'],
 
             // Typ dete
             is = {
@@ -89,9 +89,8 @@ Parser.prototype = {
                 'JavaScript': function () {
                     return token.type === 'JavaScript';
                 },
-                // Data identifier in expression
-                'Identifier': function () {
-                    return token.type === 'Word' && (/^([a-z][a-z0-9\-_]*)$/i).test(token.value)
+                'Data': function () {
+                    return token.type === 'Word' && (/^([a-z][a-z0-9\-_]*)$/i).test(token.value);
                 },
                 'Text': function () {
                     return (
@@ -152,6 +151,19 @@ Parser.prototype = {
 
         // Next after JavaScript
         this.token().next();
+
+        return node;
+    },
+
+    Data: function () {
+        var node = this.create('Data'),
+            token = this.token();
+
+        if (token.type !== 'Word' || !(/^([a-z][a-z0-9\-_]*)$/i).test(token.value)) {
+            return this.error(token);
+        }
+
+        node.name = this.Identifier();
 
         return node;
     },
@@ -334,7 +346,7 @@ Parser.prototype = {
             node;
 
         while (list) {
-            node = this.detect('JavaScript', 'Identifier', 'Expression', 'Helper');
+            node = this.detect('JavaScript', 'Data', 'Expression', 'Helper');
 
             if (node) {
                 list.push(node);
@@ -359,66 +371,105 @@ Parser.prototype = {
             token = this.token();
 
         // Expect open brace
-        if (token.isBraceOpen()) {
-            token = this.token().next();
-        } else {
+        if (!token.isBraceOpen()) {
             return this.error(token);
         }
+
+        token = this.token().next();
 
         // Expect helper declaration char
-        if (token.type === 'Punctuator' && token.value === '#') {
-            token = this.token().next();
+        if (token.type !== 'Punctuator' || token.value !== '#') {
+            return this.error(token);
+        }
+
+        token = this.token().next();
+
+        if (!token.isHelperIdentifier()) {
+            return this.error(token);
+        }
+
+        node.helperOpening = this.create('HelperOpening');
+        node.helperOpening.name = this.Identifier();
+
+        // Not empty after Identifier
+        token = this.token().findNextNotEmpty(true);
+
+        if (token.isHelperClosing()) {
+            // Helper without argument and self closing
+            node.helperOpening.arguments = [];
+        } else if (token.isBraceClose()) {
+            // Helper without argument
+            node.helperOpening.arguments = [];
+        } else if (token.isDataIdentifier()) {
+            // Helper argument
+            node.helperOpening.arguments = [this.Data()];
+
+            token = this.token().findNextNotEmpty(true);
         } else {
             return this.error(token);
         }
 
-        if (token.isHelperIdentifier()) {
-            node.name = this.Identifier();
+        // Self closing helper (no block helper)
+        if (token.isHelperClosing()) {
+            node.helperOpening.selfClosing = true;
 
-            // Not empty after Identifier
-            token = this.token().findNextNotEmpty(true);
+            // Next after self closing slash
+            token = this.token().next().next();
+        }
 
-            if (token.isHelperClosing()) {
-                // Helper without argument and self closing
-                node.arguments = null;
-            } else if (token.isBraceClose()) {
-                // Helper without argument
-                node.arguments = null;
-            } else if (token.isDataIdentifier()) {
-                // Helper argument
-                node.arguments = [this.Identifier()];
+        // Expect close brace
+        if (!token.isBraceClose()) {
+            return this.error(token);
+        }
 
-                token = this.token().findNextNotEmpty(true);
-            } else {
+        // Next after closing brace
+        token = this.token().next();
+
+        // Skip body if self closing
+        if (node.helperOpening.selfClosing) {
+            return node;
+        }
+
+        // Use expression only on attribute context
+        if (this.option('attributeScope')) {
+            node.body = this.create('Expression');
+            node.body.expression = this.Expressions();
+        } else {
+            node.body = this.Block();
+        }
+
+        // Read current token
+        token = this.token();
+
+        // Expect open brace
+        if (!token.isBraceOpen()) {
+            return this.error(token);
+        }
+
+        // Next after open brace
+        token = this.token().next();
+
+        if (token.isHelperAlternate()) {
+            node.helperAlternate = this.create('HelperAlternate');
+            node.helperAlternate.name = this.Identifier();
+
+            // Read current token
+            token = this.token();
+
+            // Expect close brace
+            if (!token.isBraceClose()) {
                 return this.error(token);
             }
 
-            // Self closing helper (no block helper)
-            if (token.isHelperClosing()) {
-                node.selfClosing = true;
-
-                // Next after self closing slash
-                token = this.token().next().next();
-            }
-
-            if (token.isBraceClose()) {
-                // Next after closing brace
-                token = this.token().next();
-
-                // Skip body if self closing
-                if (node.selfClosing) {
-                    return node;
-                }
-            } else {
-                return this.error(token);
-            }
+            // Next after else closing brace
+            token = this.token().next();
 
             // Use expression only on attribute context
             if (this.option('attributeScope')) {
-                node.body = this.create('Expression');
-                node.body.expression = this.Expressions();
+                node.helperAlternate.body = this.create('Expression');
+                node.helperAlternate.body.expression = this.Expressions();
             } else {
-                node.body = this.Block();
+                node.helperAlternate.body = this.Block();
             }
 
             // Read current token
@@ -430,58 +481,36 @@ Parser.prototype = {
 
             // Next after open brace
             token = this.token().next();
+        }
 
-            if (token.isHelperAlternate()) {
-                // Go to closing brace of else statement
-                token = this.token().next();
+        // Read current token
+        token = this.token();
 
-                if (!token.isBraceClose()) {
-                    return this.error(token);
-                }
+        if (token.isHelperClosing()) {
+            token = this.token().next();
 
-                // Next after else closing brace
-                token = this.token().next();
-
-                node.alternateBody = this.create('Expression');
-                node.alternateBody.expression = this.Expressions();
-
-                // Read current token
-                token = this.token();
-
-                if (!token.isBraceOpen()) {
-                    return this.error(token);
-                }
-
-                // Next after open brace
-                token = this.token().next();
+            // Expect match of closing helper identifier
+            if (!token.isHelperIdentifier() || token.value !== node.helperOpening.name.name) {
+                return this.error(token);
             }
 
+            node.helperClosing = this.create('HelperClosing');
+            node.helperClosing.name = this.Identifier();
+
+            // Read current token
             token = this.token();
 
-            if (token.isHelperClosing()) {
-                token = this.token().next();
-
-                if (token.isHelperIdentifier() && token.value === node.name.name) {
-                    // Next after helper closing identifier
-                    token = this.token().next();
-
-                    if (!token.isBraceClose()) {
-                        return this.error(token);
-                    }
-
-                    // Next after closing brace
-                    token = this.token().next();
-
-                    return node;
-                } else {
-                    return this.error(token);
-                }
-            } else {
-                return this.error(this.token());
+            // Expect close brace
+            if (!token.isBraceClose()) {
+                return this.error(token);
             }
 
+            // Next after closing brace
+            token = this.token().next();
+
+            return node;
         } else {
-            return this.error(token);
+            return this.error(this.token());
         }
 
         return node;

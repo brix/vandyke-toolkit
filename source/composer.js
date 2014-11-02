@@ -39,12 +39,21 @@ Composer.prototype = {
         });
     },
 
-    write: function (chunk) {
-        var i = 0;
+    option: function (key, val) {
+        if (arguments.length === 2) {
+            this.options[key] = val;
+        }
 
-        if (this.content.substr(this.content.length - this.options.lineBreak.length, this.options.lineBreak.length) === this.options.lineBreak) {
+        return this.options[key];
+    },
+
+    write: function (chunk) {
+        var lineBreak = this.option('lineBreak'),
+            i = 0;
+
+        if (this.content.substr(this.content.length - lineBreak.length, lineBreak.length) === lineBreak) {
             while (i < this._indent) {
-                this.content += this.options.indent;
+                this.content += this.option('indent');
                 i++;
             }
         }
@@ -55,11 +64,11 @@ Composer.prototype = {
     },
 
     writeString: function (chunk) {
-        this.write(JSON.stringify(chunk.toString()));
+        return this.write(JSON.stringify(chunk.toString()));
     },
 
     lineBreak: function () {
-        this.content += this.options.lineBreak;
+        this.content += this.option('lineBreak');
 
         return this;
     },
@@ -92,7 +101,8 @@ Composer.prototype = {
     },
     ElementOpeningLeave: function (node, ctx) {
         if (node.selfClosing) {
-            this.write('/>');
+            this.write('/>')
+                .lineBreak();
         } else {
             this.write('>');
         }
@@ -107,22 +117,73 @@ Composer.prototype = {
             .lineBreak();
     },
 
-    HelperEnter: function (node, ctx) {
-        this.write('{vd.helper(')
-            .writeString(node.name.name);
+    HelperOpeningEnter: function (node, ctx) {
+        if (!this.option('.propertyScope')) {
+            this.write('{')
+        }
+
+        this.write('helper(')
+            .writeString(node.name.name)
+            .write(', ')
+            .write(node.arguments.length)
+            .write(', ');
     },
-    
+    HelperOpeningLeave: function (node, ctx) {
+        if (node.selfClosing) {
+            this.write(')');
+        }
+    },
+
+    HelperAlternateEnter: function (node, ctx) {
+        this.write(', ');
+    },
+
+    HelperClosingLeave: function (node, ctx) {
+        if (node.selfClosing) {
+            this.write(')');
+        }
+
+        if (!this.option('.propertyScope')) {
+            this.write('}')
+        }
+    },
+
+    DataEnter: function (node, ctx) {
+        if (ctx.parent().type === 'Element') {
+            this.write('{');
+        }
+
+        this.write('data(')
+            .writeString(node.name.name)
+            .write('), ');
+
+        if (ctx.parent().type === 'Element') {
+            this.write('}');
+        }
+    },
+
+    ExpressionEnter: function (node, ctx) {
+        this.write('expression(');
+    },
+    ExpressionLeave: function (node, ctx) {
+        this.write(')');
+    },
+
     BlockEnter: function (node, ctx) {
+        if (ctx.parent().type !== 'Element') {
+            this.write('block(');
+        }
+
         this.lineBreak()
-            .indentInc();  
+            .indentInc();
     },
     BlockLeave: function (node, ctx) {
         this.indentDec()
-            .lineBreak();  
-    },
+            .lineBreak();
 
-    HelperLeave: function (node, ctx) {
-        this.write(')}');
+        if (ctx.parent().type !== 'Element') {
+            this.write(')');
+        }
     },
 
     PropertyEnter: function (node, ctx) {
@@ -130,8 +191,20 @@ Composer.prototype = {
             .write(node.name.name)
             .write('=');
 
+        this.option('.propertyScope', true);
+
         if (node.value === null) {
             this.write('{true}');
+        } else if (node.value.type !== 'String') {
+            this.write('{');
+        }
+    },
+
+    PropertyLeave: function (node, ctx) {
+        this.option('.propertyScope', false);
+
+        if (node.value !== null && node.value.type !== 'String') {
+            this.write('}');
         }
     },
 
