@@ -1,15 +1,23 @@
 /*global require, exports, module*/
 
-var Tokenizer = require('./tokenizer');
+var Tokenizer = require('./tokenizer'),
+    Parser;
 
-function Parser(content) {
-    this.tokenizer = new Tokenizer(content);
-    this.options = {};
+Parser = function Parser() {
 
-    return this.Template();
+};
+
+Parser.parse = function (source) {
+    return new Parser().parse(source);
 };
 
 Parser.prototype = {
+    parse: function (source) {
+        this.options = {};
+        this.tokenizer = new Tokenizer(source);
+
+        return this.Template();
+    },
 
     option: function (key, val) {
         if (arguments.length === 2) {
@@ -128,7 +136,7 @@ Parser.prototype = {
         var node = this.create('String'),
             token = this.token();
 
-        node.name = token.value;
+        node.value = token.value;
 
         // Next after String
         this.token().next();
@@ -169,18 +177,19 @@ Parser.prototype = {
         token = this.token().findNextNotEmpty();
 
         if (token.isElementIdentifier()) {
-            node.name = this.Identifier();
+            node.elementOpening = this.create('ElementOpening');
+            node.elementOpening.name = this.Identifier();
         } else {
             return this.error(token);
         }
 
-        node.attributes = this.Attributes();
+        node.elementOpening.attributes = this.Attributes();
 
         // Read current token
         token = this.token();
 
         if (token.type === 'Punctuator' && token.value === '/') {
-            node.selfClosing = true;
+            node.elementOpening.selfClosing = true;
 
             // Next after self closing
             token = this.token().next();
@@ -194,7 +203,7 @@ Parser.prototype = {
         }
 
         // Skip body if self closing
-        if (node.selfClosing) {
+        if (node.elementOpening.selfClosing) {
             return node;
         }
 
@@ -217,19 +226,24 @@ Parser.prototype = {
         // Next after not empty
         token = this.token().findNextNotEmpty();
 
-        if (!token.isElementIdentifier() || token.value !== node.name.name) {
+        // Closing part of element
+        if (token.isElementIdentifier() && token.value === node.elementOpening.name.name) {
+            node.elementClosing = this.create('ElementClosing');
+            node.elementClosing.name = this.Identifier();
+        } else {
             return this.error(token);
         }
 
         // Next after not empty
-        token = this.token().findNextNotEmpty();
+        token = this.token().findNextNotEmpty(true);
 
-        if (token.type !== 'Punctuator' && token.value !== '>') {
+        if (token.type === 'Punctuator' && token.value === '>') {
+            // Next after element end
+            token = this.token().next();
+        } else {
             return this.error(token);
         }
 
-        // Next after element end
-        token = this.token().next();
 
         return node;
     },
@@ -366,13 +380,13 @@ Parser.prototype = {
 
             if (token.isHelperClosing()) {
                 // Helper without argument and self closing
-                node.argument = null;
+                node.arguments = null;
             } else if (token.isBraceClose()) {
                 // Helper without argument
-                node.argument = null;
+                node.arguments = null;
             } else if (token.isDataIdentifier()) {
                 // Helper argument
-                node.argument = this.Identifier();
+                node.arguments = [this.Identifier()];
 
                 token = this.token().findNextNotEmpty(true);
             } else {
@@ -519,4 +533,4 @@ Parser.prototype = {
     }
 };
 
-console.log(JSON.stringify(new Parser(require('fs').readFileSync('./test/test.vandyke').toString()), null, 4));
+module.exports = Parser;
