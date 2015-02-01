@@ -1,45 +1,63 @@
 /*global require, exports, module*/
 
-var Traverser = require('./traverser'),
+var Cla55 = require('cla55').Cla55,
+    Traverser = require('./traverser'),
     Composer;
 
-Composer = function Composer(options) {
-    this.options = {
-        indent: '    ',
-        lineBreak: '\n'
-    };
+Composer = Cla55.extend({
+    constructor: function constructor(options) {
+        this.options = {
+            map: true,
+            indent: '    ',
+            lineBreak: '\n'
+        };
 
-    this.content = '';
-    this._indent = 0;
-};
+        this.content = '';
+        this._indent = 0;
+    },
 
-Composer.compose = function compose(ast, options) {
-    var composer = new this(options)
+    propsMap: {
+        'class': 'className'
+    },
 
-    composer.compose(ast);
-
-    return composer.content;
-};
-
-Composer.prototype = {
-    compose: function (ast) {
+    compose: function compose(ast) {
         var that = this;
 
         Traverser.traverse(ast, {
             enter: function (node) {
-                if (that[node.type + 'Enter']) {
-                    that[node.type + 'Enter'](node, this);
+                if (that[node.type] && that[node.type].enter) {
+                    that[node.type].enter.call(that, this, node);
                 }
             },
             leave: function (node) {
-                if (that[node.type + 'Leave']) {
-                    that[node.type + 'Leave'](node, this);
+                if (that[node.type] && that[node.type].leave) {
+                    that[node.type].leave.call(that, this, node);
+                }
+            },
+            before: function (node, key) {
+                if (that[node.type] && that[node.type][key] && that[node.type][key].before) {
+                    that[node.type][key].before.call(that, this, node);
+                }
+            },
+            after: function (node, key) {
+                if (that[node.type] && that[node.type][key] && that[node.type][key].after) {
+                    that[node.type][key].after.call(that, this, node);
+                }
+            },
+            beforeEach: function (node, key, i) {
+                if (that[node.type] && that[node.type][key] && that[node.type][key].beforeEach) {
+                    that[node.type][key].beforeEach.call(that, this, node, i);
+                }
+            },
+            afterEach: function (node, key, i) {
+                if (that[node.type] && that[node.type][key] && that[node.type][key].afterEach) {
+                    that[node.type][key].afterEach.call(that, this, node, i);
                 }
             }
         });
     },
 
-    option: function (key, val) {
+    option: function options(key, val) {
         if (arguments.length === 2) {
             this.options[key] = val;
         }
@@ -47,10 +65,11 @@ Composer.prototype = {
         return this.options[key];
     },
 
-    write: function (chunk) {
+    write: function write(chunk) {
         var lineBreak = this.option('lineBreak'),
             i = 0;
 
+        // Generate indent only for new line
         if (this.content.substr(this.content.length - lineBreak.length, lineBreak.length) === lineBreak) {
             while (i < this._indent) {
                 this.content += this.option('indent');
@@ -63,158 +82,259 @@ Composer.prototype = {
         return this;
     },
 
-    writeString: function (chunk) {
+    writeString: function writeString(chunk) {
         return this.write(JSON.stringify(chunk.toString()));
     },
 
-    lineBreak: function () {
+    lineBreak: function lineBreak() {
+        var lineBreak = this.option('lineBreak'),
+            i = 0;
+
+        // Prevent double line breaks
+        if (this.content.substr(this.content.length - lineBreak.length, lineBreak.length) === lineBreak) {
+            return this;
+        }
+
         this.content += this.option('lineBreak');
 
         return this;
     },
 
-    indentInc: function () {
+    indentInc: function indentInc() {
         this._indent++;
 
         return this;
     },
 
-    indentDec: function () {
+    indentDec: function indentDec() {
         this._indent--;
 
         return this;
     },
 
-    TemplateEnter: function (node, ctx) {
-        this.write('function () {')
-            .lineBreak()
-            .indentInc();
-    },
-    TemplateLeave: function (node, ctx) {
-        this.indentDec()
-            .write('}');
+    Template: {
+        enter: function (ctx, node) {
+            this.write('function template() {')
+                .lineBreak()
+                .indentInc()
+                .write('var ')
+                .indentInc()
+                .write('that = this,')
+                .lineBreak()
+                .write('React = that.React,')
+                .lineBreak()
+                .write('Components = that.components;')
+                .lineBreak()
+                .indentDec()
+                .lineBreak()
+                .write('return (')
+                .indentInc()
+                .lineBreak();
+        },
+        leave: function (ctx, node) {
+            this.indentDec()
+                .lineBreak()
+                .write(');')
+                .lineBreak()
+                .indentDec()
+                .write('}');
+        }
     },
 
-    ElementOpeningEnter: function (node, ctx) {
-        this.write('<')
-            .write(node.name.name);
+    ElementOpening: {
+        enter: function (ctx, node) {
+            this.lineBreak()
+                .write('<')
+                .write(node.name.name);
+        },
+        leave: function (ctx, node) {
+            if (node.selfClosing) {
+                this.write('/>');
+            } else {
+                this.write('>');
+            }
+        }
     },
-    ElementOpeningLeave: function (node, ctx) {
-        if (node.selfClosing) {
-            this.write('/>')
-                .lineBreak();
-        } else {
+
+    ElementClosing: {
+        enter: function (ctx, node) {
+            this.write('</')
+                .write(node.name.name);
+        },
+        leave: function (ctx, node) {
             this.write('>');
         }
     },
 
-    ElementClosingEnter: function (node, ctx) {
-        this.write('</')
-            .write(node.name.name);
-    },
-    ElementClosingLeave: function (node, ctx) {
-        this.write('>')
-            .lineBreak();
-    },
-
-    HelperOpeningEnter: function (node, ctx) {
-        if (!this.option('.propertyScope')) {
-            this.write('{')
-        }
-
-        this.write('helper(')
-            .writeString(node.name.name)
-            .write(', ')
-            .write(node.arguments.length)
-            .write(', ');
-    },
-    HelperOpeningLeave: function (node, ctx) {
-        if (node.selfClosing) {
+    Helper: {
+        enter: function (ctx, node) {
+            this.write('that.helper(');
+        },
+        leave: function (ctx, node) {
             this.write(')');
+        },
+        body: {
+            before: function (ctx, node) {
+                this.write(', function () {')
+                    .indentInc()
+                    .lineBreak()
+                    .write('return (');
+            },
+            after: function (ctx, node) {
+                this.write(');')
+                    .indentDec()
+                    .lineBreak()
+                    .write('}');
+            }
         }
     },
 
-    HelperAlternateEnter: function (node, ctx) {
-        this.write(', ');
+    HelperOpening: {
+        enter: function (ctx, node) {
+            this.writeString(node.name.name);
+        },
+        arguments: {
+            before: function (ctx, node) {
+                this.write(', [');
+            },
+            after: function (ctx, node) {
+                this.write(']');
+            }
+        }
     },
 
-    HelperClosingLeave: function (node, ctx) {
-        if (node.selfClosing) {
-            this.write(')');
-        }
-
-        if (!this.option('.propertyScope')) {
-            this.write('}')
+    HelperAlternate: {
+        body: {
+            before: function (ctx, node) {
+                this.write(', function () {')
+                    .indentInc()
+                    .lineBreak()
+                    .write('return ');
+            },
+            after: function (ctx, node) {
+                this.write(';')
+                    .indentDec()
+                    .lineBreak()
+                    .write('}');
+            }
         }
     },
 
-    DataEnter: function (node, ctx) {
-        if (ctx.parent().type === 'Element') {
+    Data: {
+        enter: function (ctx, node) {
+            this.write('that.data(')
+                .writeString(node.name.name)
+                .write(node.scope ? ', true' : '')
+                .write(')');
+        }
+    },
+
+    Expression: {
+        enter: function (ctx, node) {
             this.write('{');
-        }
-
-        this.write('data(')
-            .writeString(node.name.name)
-            .write('), ');
-
-        if (ctx.parent().type === 'Element') {
+        },
+        leave: function (ctx, node) {
             this.write('}');
         }
     },
 
-    ExpressionEnter: function (node, ctx) {
-        this.write('expression(');
-    },
-    ExpressionLeave: function (node, ctx) {
-        this.write(')');
-    },
-
-    BlockEnter: function (node, ctx) {
-        if (ctx.parent().type !== 'Element') {
-            this.write('block(');
-        }
-
-        this.lineBreak()
-            .indentInc();
-    },
-    BlockLeave: function (node, ctx) {
-        this.indentDec()
-            .lineBreak();
-
-        if (ctx.parent().type !== 'Element') {
+    Concat: {
+        enter: function (ctx, node) {
+            this.write('that.concat(');
+        },
+        leave: function (ctx, node) {
             this.write(')');
+        },
+        concat: {
+            beforeEach: function (ctx, node, i) {
+                if (i) {
+                    this.write(', ');
+                }
+            }
         }
     },
 
-    PropertyEnter: function (node, ctx) {
-        this.write(' ')
-            .write(node.name.name)
-            .write('=');
-
-        this.option('.propertyScope', true);
-
-        if (node.value === null) {
-            this.write('{true}');
-        } else if (node.value.type !== 'String') {
-            this.write('{');
+    ListBlock: {
+        enter: function (ctx, node) {
+            this.write('that.list(')
+                .lineBreak()
+                .indentInc();
+        },
+        leave: function (ctx, node) {
+            this.indentDec()
+                .lineBreak()
+                .write(')');
+        },
+        list: {
+            beforeEach: function (ctx, node, i) {
+                if (i) {
+                    this.write(', ');
+                }
+            }
         }
     },
 
-    PropertyLeave: function (node, ctx) {
-        this.option('.propertyScope', false);
+    Block: {
+        enter: function (ctx, node) {
+            if (ctx.parent().type !== 'Element') {
+                this.write('that.block(');
+            }
 
-        if (node.value !== null && node.value.type !== 'String') {
-            this.write('}');
+            this.lineBreak()
+                .indentInc();
+        },
+        leave: function (ctx, node) {
+            this.indentDec()
+                .lineBreak();
+
+            if (ctx.parent().type !== 'Element') {
+                this.write(')');
+            }
         }
     },
 
-    StringEnter: function (node, ctx) {
-        this.write(node.value);
+    Property: {
+        enter: function (ctx, node) {
+            var name = (this.options.map && this.propsMap[node.name.name]) || node.name.name;
+
+            this.write(' ')
+                .write(name)
+                .write('=');
+
+            if (node.value === null) {
+                this.write('{true}');
+            }
+        },
+        leave: function (ctx, node) {
+
+        }
     },
 
-    JavaScriptEnter: function (node, ctx) {
-        this.write(node.value);
+    Text: {
+        enter: function (ctx, node) {
+            this.write(node.value);
+        }
+    },
+
+    String: {
+        enter: function (ctx, node) {
+            this.write(node.value);
+        }
+    },
+
+    JavaScript: {
+        enter: function (ctx, node) {
+            this.write(node.value);
+        }
     }
-};
+}, {
+    compose: function compose(ast, options) {
+        var composer = new this(options)
+
+        composer.compose(ast);
+
+        return composer.content;
+    }
+});
 
 module.exports = Composer;

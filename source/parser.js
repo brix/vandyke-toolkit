@@ -1,25 +1,20 @@
 /*global require, exports, module*/
 
-var Tokenizer = require('./tokenizer'),
+var Cla55 = require('cla55').Cla55,
+    Tokenizer = require('./tokenizer'),
     Parser;
 
-Parser = function Parser() {
-
-};
-
-Parser.parse = function (source) {
-    return new Parser().parse(source);
-};
-
-Parser.prototype = {
-    parse: function (source) {
+Parser = Cla55.extend({
+    parse: function parse(source) {
         this.options = {};
+        this.contexts = [];
+
         this.tokenizer = new Tokenizer(source);
 
         return this.Template();
     },
 
-    option: function (key, val) {
+    option: function option(key, val) {
         if (arguments.length === 2) {
             this.options[key] = val;
         }
@@ -27,22 +22,22 @@ Parser.prototype = {
         return this.options[key];
     },
 
-    token: function () {
+    token: function token() {
         return this.tokenizer.token();
     },
 
-    error: function (token) {
+    error: function error(token) {
         console.error('Unxpected token: "' + token.value + '"; Line: ' + token.loc.start.line + '"; Column: ' + token.loc.start.column);
         console.trace();
     },
 
-    create: function (type) {
+    create: function create(type) {
         return {
             type: type
         };
     },
 
-    detect: function () {
+    detect: function detect() {
         var token = this.token(),
 
             types = ['Element', 'Helper', 'Expression', 'Data', 'String', 'JavaScript', 'Text'],
@@ -56,8 +51,13 @@ Parser.prototype = {
                     // Reset token walk;
                     next.prev();
 
-                    return token.type === 'Punctuator' && token.value === '<' &&
-                        next.type !== 'Punctuator';
+                    return (
+                        token.type === 'Punctuator' && token.value === '<' &&
+                        (
+                            (next.type === 'Punctuator' && next.value !== '/') ||
+                            next.type !== 'Punctuator'
+                        )
+                    );
                 },
                 'Helper': function () {
                     // Read next token
@@ -80,7 +80,10 @@ Parser.prototype = {
 
                     return (
                         token.type === 'Punctuator' && token.value === '{' &&
-                        next.type !== 'Punctuator'
+                        (
+                            (next.type === 'Punctuator' && next.value !== '/') ||
+                            next.type !== 'Punctuator'
+                        )
                     );
                 },
                 'String': function () {
@@ -90,6 +93,14 @@ Parser.prototype = {
                     return token.type === 'JavaScript';
                 },
                 'Data': function () {
+                    if (token.type === 'Punctuator' && token.value === '@')  {
+                        // Read next token
+                        token = token.next();
+
+                        // Reset token walk;
+                        token.prev();
+                    }
+
                     return token.type === 'Word' && (/^([a-z][a-z0-9\-_]*)$/i).test(token.value);
                 },
                 'Text': function () {
@@ -119,7 +130,7 @@ Parser.prototype = {
         return null;
     },
 
-    Identifier: function () {
+    Identifier: function Identifier() {
         var node = this.create('Identifier'),
             token = this.token();
 
@@ -131,7 +142,7 @@ Parser.prototype = {
         return node;
     },
 
-    String: function () {
+    String: function String() {
         var node = this.create('String'),
             token = this.token();
 
@@ -143,7 +154,7 @@ Parser.prototype = {
         return node;
     },
 
-    JavaScript: function () {
+    JavaScript: function JavaScript() {
         var node = this.create('JavaScript'),
             token = this.token();
 
@@ -155,20 +166,28 @@ Parser.prototype = {
         return node;
     },
 
-    Data: function () {
+    Data: function Data() {
         var node = this.create('Data'),
-            token = this.token();
+            token = this.token(),
+            scope = false;
+
+        if (token.type === 'Punctuator' && token.value === '@') {
+            token = token.next();
+
+            scope = true;
+        }
 
         if (token.type !== 'Word' || !(/^([a-z][a-z0-9\-_]*)$/i).test(token.value)) {
             return this.error(token);
         }
 
         node.name = this.Identifier();
+        node.scope = scope;
 
         return node;
     },
 
-    Template: function () {
+    Template: function Template() {
         var node = this.create('Template'),
             token = this.token().findNextNotEmpty(true);
 
@@ -177,7 +196,7 @@ Parser.prototype = {
         return node;
     },
 
-    Element: function (token) {
+    Element: function Element(token) {
         var node = this.create('Element'),
             token = this.token();
 
@@ -260,11 +279,11 @@ Parser.prototype = {
         return node;
     },
 
-    Attributes: function () {
+    Attributes: function Attributes() {
         var list = [],
             node;
 
-        this.option('attributeScope', true);
+        this.option('.attribute', true);
 
         while (list) {
             node = this.Attribute();
@@ -276,12 +295,12 @@ Parser.prototype = {
             }
         }
 
-        this.option('attributeScope', false);
+        this.option('.attribute', false);
 
         return list;
     },
 
-    Attribute: function () {
+    Attribute: function Attribute() {
         var node = this.create('Property'),
             token = this.token();
 
@@ -302,7 +321,7 @@ Parser.prototype = {
         if (token.type === 'Punctuator' && token.value === '=') {
             token = token.next();
 
-            node.value = this.detect('Helper', 'Expression', 'String');
+            node.value = this.detect('Expression', 'String');
 
             if (!node.value) {
                 return this.error(token);
@@ -315,60 +334,42 @@ Parser.prototype = {
     },
 
     // '{ expression [+ expression] }'
-    Expression: function () {
+    Expression: function Expression() {
         var node = this.create('Expression'),
             token = this.token();
 
         // Expect open brace
-        if (token.isBraceOpen()) {
-            token = this.token().next();
-        } else {
+        if (!token.isBraceOpen()) {
             return this.error(token);
         }
 
-        node.expression = this.Expressions();
+        token = this.token().next();
+
+        if (token.type === 'Punctuator' && token.value === '#') {
+            token = this.token().prev();
+
+            node.expression = this.Helper();
+
+            token = this.token().prev();
+        } else {
+            node.expression = this.Concat();
+        }
 
         token = this.token().findNextNotEmpty(true);
 
         if (!token.isBraceClose()) {
             return this.error(token);
-        } else {
-            token.next();
         }
+
+        token.next();
 
         return node;
     },
 
-    // { 'expression [+ expression]' }
-    Expressions: function () {
-        var list = [],
-            token = this.token().findNextNotEmpty(true),
-            node;
-
-        while (list) {
-            node = this.detect('JavaScript', 'Data', 'Expression', 'Helper');
-
-            if (node) {
-                list.push(node);
-            } else {
-                break;
-            }
-
-            token = this.token().findNextNotEmpty(true);
-
-            if (token.type === 'Punctuator' && token.value === '+') {
-                token = this.token().findNextNotEmpty();
-            } else {
-                break;
-            }
-        }
-
-        return list;
-    },
-
-    Helper: function () {
+    Helper: function Helper() {
         var node = this.create('Helper'),
-            token = this.token();
+            token = this.token(),
+            argument;
 
         // Expect open brace
         if (!token.isBraceOpen()) {
@@ -400,13 +401,16 @@ Parser.prototype = {
         } else if (token.isBraceClose()) {
             // Helper without argument
             node.helperOpening.arguments = [];
-        } else if (token.isDataIdentifier()) {
-            // Helper argument
-            node.helperOpening.arguments = [this.Data()];
+        } else {
+            argument = this.detect('Data', 'JavaScript');
+
+            if (!argument) {
+                return this.error(token);
+            }
+
+            node.helperOpening.arguments = [argument];
 
             token = this.token().findNextNotEmpty(true);
-        } else {
-            return this.error(token);
         }
 
         // Self closing helper (no block helper)
@@ -414,7 +418,7 @@ Parser.prototype = {
             node.helperOpening.selfClosing = true;
 
             // Next after self closing slash
-            token = this.token().next().next();
+            token = this.token().next();
         }
 
         // Expect close brace
@@ -427,15 +431,18 @@ Parser.prototype = {
 
         // Skip body if self closing
         if (node.helperOpening.selfClosing) {
+            node.body = null;
+            node.helperAlternate = null;
+            node.helperClosing = null;
+
             return node;
         }
 
         // Use expression only on attribute context
-        if (this.option('attributeScope')) {
-            node.body = this.create('Expression');
-            node.body.expression = this.Expressions();
+        if (this.option('.attribute')) {
+            node.body = this.Concat();
         } else {
-            node.body = this.Block();
+            node.body = this.ListBlock();
         }
 
         // Read current token
@@ -465,11 +472,10 @@ Parser.prototype = {
             token = this.token().next();
 
             // Use expression only on attribute context
-            if (this.option('attributeScope')) {
-                node.helperAlternate.body = this.create('Expression');
-                node.helperAlternate.body.expression = this.Expressions();
+            if (this.option('.attribute')) {
+                node.helperAlternate.body = this.Concat();
             } else {
-                node.helperAlternate.body = this.Block();
+                node.helperAlternate.body = this.ListBlock();
             }
 
             // Read current token
@@ -481,6 +487,8 @@ Parser.prototype = {
 
             // Next after open brace
             token = this.token().next();
+        } else {
+            node.helperAlternate = null;
         }
 
         // Read current token
@@ -516,7 +524,7 @@ Parser.prototype = {
         return node;
     },
 
-    Text: function () {
+    Text: function Text() {
         var node = this.create('Text'),
             token = this.token();
 
@@ -540,7 +548,78 @@ Parser.prototype = {
         return node;
     },
 
-    Block: function () {
+    Concat: function Concat() {
+        var node = this.create('Concat'),
+            token = this.token().findNextNotEmpty(true),
+            childNode;
+
+        node.concat = [];
+
+        while (node.concat) {
+            childNode = this.detect('JavaScript', 'Data', 'Helper');
+
+            if (childNode) {
+                node.concat.push(childNode);
+            } else {
+                break;
+            }
+
+            token = this.token().findNextNotEmpty(true);
+
+            if (token.type === 'Punctuator' && token.value === '+') {
+                token = this.token().findNextNotEmpty();
+            } else {
+                break;
+            }
+        }
+
+        // Return null
+        if (node.concat.length === 0) {
+            return null;
+        }
+
+        // Return first list item only one exists
+        if (node.concat.length === 1) {
+            return node.concat[0];
+        }
+
+        // Return the concat node with its list
+        return node;
+    },
+
+    ListBlock: function ListBlock() {
+        var node = this.create('ListBlock'),
+            token = this.token().findNextNotEmpty(true),
+            childNode;
+
+        node.list = [];
+
+        while (node.list) {
+            childNode = this.detect('Element', 'Expression', 'Text');
+
+            if (childNode) {
+                node.list.push(childNode);
+            } else {
+                break;
+            }
+
+            token = this.token().findNextNotEmpty(true);
+        }
+
+        // Return null
+        if (node.list.length === 0) {
+            return null;
+        }
+
+        // Return first list item only one exists
+        if (node.list.length === 1) {
+            return node.list[0];
+        }
+
+        return node;
+    },
+
+    Block: function Block() {
         var node = this.create('Block'),
             token = this.token().findNextNotEmpty(true),
             childNode;
@@ -548,7 +627,7 @@ Parser.prototype = {
         node.body = [];
 
         while (node.body) {
-            childNode = this.detect('Element', 'Expression', 'Helper', 'Text');
+            childNode = this.detect('Element', 'Expression', 'Text');
             if (childNode) {
                 node.body.push(childNode);
             } else {
@@ -560,6 +639,10 @@ Parser.prototype = {
 
         return node;
     }
-};
+}, {
+    parse: function parse(source) {
+        return new this().parse(source);
+    }
+});
 
 module.exports = Parser;

@@ -1,127 +1,129 @@
 /*global require, exports, module*/
 
-var Token = require('./token');
+var Cla55 = require('cla55').cla55(Array),
+    Token = require('./token'),
+    Tokenizer;
 
-function Tokenizer(tokens) {
-    if (typeof tokens === 'string') {
-        return Tokenizer.parse(tokens);
+Tokenizer = Cla55.extend({
+    constructor: function constructor(tokens) {
+        if (typeof tokens === 'string') {
+            return Tokenizer.parse(tokens);
+        }
+
+        this.index = 0;
+    },
+
+    token: function token(token) {
+        if (arguments.length && token) {
+            this.index = this.indexOf(token.token ? token.token() : token);
+        }
+
+        return this[this.index];
     }
+}, {
+    parse: function parse(content) {
+        var context, pos, error, i, l;
 
-    this.index = 0;
-};
+        context = new Tokenizer();
+        pos = {
+            range: 0,
+            line: 0,
+            column: 0
+        };
 
-Tokenizer.parse = function parse(content) {
-    var context, pos, error, i, l;
+        content.replace(/(^|\r?\n|\r)([^\r\n]*)/g, function (_, br, line) {
+            // Handle line break token
+            pos.range = pos.range + br.length;
+            pos.column = pos.column + br.length;
 
-    context = new Tokenizer();
-    pos = {
-        range: 0,
-        line: 0,
-        column: 0
-    };
+            if (br) {
+                context.push(new Token(
+                    context,
+                    'LineBreak',
+                    br,
+                    [
+                        pos.range - br.length,
+                        pos.range - 1
+                    ],
+                    {
+                        start: {
+                            line: pos.line,
+                            column: pos.column - br.length
+                        },
+                        end: {
+                            line: pos.line,
+                            column: pos.column - 1
+                        }
+                    }
+                ));
+            }
 
-    content.replace(/(^|\r?\n|\r)([^\r\n]*)/g, function (_, br, line) {
-        // Handle line break token
-        pos.range = pos.range + br.length;
-        pos.column = pos.column + br.length;
+            // Clear position for new line
+            pos.column = 0;
+            pos.line += 1;
 
-        if (br) {
-            context.push(new Token(
-                context,
-                'LineBreak',
-                br,
-                [
-                    pos.range - br.length,
-                    pos.range - 1
-                ],
-                {
-                    start: {
-                        line: pos.line,
-                        column: pos.column - br.length
-                    },
-                    end: {
-                        line: pos.line,
-                        column: pos.column - 1
+            // Parse tokens for current line
+            while (line.length) {
+                for (i = 0, l = Tokenizer._tokenList.length; i <= l; i++) {
+
+                    if (i >= l) {
+                        error = 'Unxpected token' + line.substr(0, 10);
+                        line = '';
+                        break;
+                        throw(error);
+                    }
+
+                    if (Tokenizer._tokens[Tokenizer._tokenList[i]].test(line)) {
+                        line = line.replace(Tokenizer._tokens[Tokenizer._tokenList[i]], function (value) {
+                            // Increment range
+                            pos.range = pos.range + value.length;
+                            pos.column = pos.column + value.length;
+
+                            // Add token
+                            context.push(new Token(
+                                context,
+                                Tokenizer._tokenList[i],
+                                value,
+                                [
+                                    pos.range - value.length,
+                                    pos.range - 1
+                                ],
+                                {
+                                    start: {
+                                        line: pos.line,
+                                        column: pos.column - value.length
+                                    },
+                                    end: {
+                                        line: pos.line,
+                                        column: pos.column - 1
+                                    }
+                                }
+                            ));
+
+                            // Slice line
+                            return '';
+                        });
+
+                        break;
                     }
                 }
-            ));
-        }
-
-        // Clear position for new line
-        pos.column = 0;
-        pos.line += 1;
-
-        // Parse tokens for current line
-        while (line.length) {
-            for (i = 0, l = Tokenizer._tokenList.length; i <= l; i++) {
-
-                if (i >= l) {
-                    error = 'Unxpected token' + line.substr(0, 10);
-                    line = '';
-                    break;
-                    throw(error);
-                }
-
-                if (Tokenizer._tokens[Tokenizer._tokenList[i]].test(line)) {
-                    line = line.replace(Tokenizer._tokens[Tokenizer._tokenList[i]], function (value) {
-                        // Increment range
-                        pos.range = pos.range + value.length;
-                        pos.column = pos.column + value.length;
-
-                        // Add token
-                        context.push(new Token(
-                            context,
-                            Tokenizer._tokenList[i],
-                            value,
-                            [
-                                pos.range - value.length,
-                                pos.range - 1
-                            ],
-                            {
-                                start: {
-                                    line: pos.line,
-                                    column: pos.column - value.length
-                                },
-                                end: {
-                                    line: pos.line,
-                                    column: pos.column - 1
-                                }
-                            }
-                        ));
-
-                        // Slice line
-                        return '';
-                    });
-
-                    break;
-                }
             }
+        });
+
+        return context;
+    },
+
+    _tokens: {},
+
+    _tokenList: [],
+
+    register: function register(id, reg) {
+        if (!this._tokens[id]) {
+            this._tokens[id] = reg;
+            this._tokenList.push(id);
         }
-    });
-
-    return context;
-};
-
-Tokenizer._tokens = {};
-
-Tokenizer._tokenList = [];
-
-Tokenizer.register = function register(id, reg) {
-    if (!Tokenizer._tokens[id]) {
-        Tokenizer._tokens[id] = reg;
-        Tokenizer._tokenList.push(id);
     }
-};
-
-Tokenizer.prototype = new Array();
-
-Tokenizer.prototype.token = function (token) {
-    if (arguments.length && token) {
-        this.index = this.indexOf(token.token ? token.token() : token);
-    }
-
-    return this[this.index];
-};
+});
 
 Tokenizer.register('WhiteSpace', /^([\t ]+)/);
 Tokenizer.register('LineBreak', /^(\r\n|\r|\n)/);
