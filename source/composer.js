@@ -123,7 +123,17 @@ Composer = Cla55.extend({
                 .lineBreak()
                 .write('React = that.React,')
                 .lineBreak()
-                .write('Components = that.components;')
+                .write('data = that.proxy("data"),')
+                .lineBreak()
+                .write('component = that.proxy("component"),')
+                .lineBreak()
+                .write('concat = that.proxy("concat"),')
+                .lineBreak()
+                .write('helper = that.proxy("helper"),')
+                .lineBreak()
+                .write('list = that.proxy("list"),')
+                .lineBreak()
+                .write('listener = that.proxy("listener");')
                 .lineBreak()
                 .indentDec()
                 .lineBreak()
@@ -168,7 +178,7 @@ Composer = Cla55.extend({
 
     Helper: {
         enter: function (ctx, node) {
-            this.write('that.helper(');
+            this.write('helper(');
         },
         leave: function (ctx, node) {
             this.write(')');
@@ -222,7 +232,7 @@ Composer = Cla55.extend({
 
     Data: {
         enter: function (ctx, node) {
-            this.write('that.data(')
+            this.write('data(')
                 .writeString(node.name.name)
                 .write(node.scope ? ', true' : '')
                 .write(')');
@@ -240,7 +250,7 @@ Composer = Cla55.extend({
 
     Concat: {
         enter: function (ctx, node) {
-            this.write('that.concat(');
+            this.write('concat(');
         },
         leave: function (ctx, node) {
             this.write(')');
@@ -256,7 +266,7 @@ Composer = Cla55.extend({
 
     ListBlock: {
         enter: function (ctx, node) {
-            this.write('that.list(')
+            this.write('list(')
                 .lineBreak()
                 .indentInc();
         },
@@ -277,7 +287,7 @@ Composer = Cla55.extend({
     Block: {
         enter: function (ctx, node) {
             if (ctx.parent().type !== 'Element') {
-                this.write('that.block(');
+                this.write('block(');
             }
 
             this.lineBreak()
