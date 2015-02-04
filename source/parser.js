@@ -1,6 +1,6 @@
 /*global require, exports, module*/
 
-var Cla55 = require('cla55').Cla55,
+var Cla55 = require('cla55'),
     Tokenizer = require('./tokenizer'),
     Parser;
 

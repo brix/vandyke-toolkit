@@ -1,6 +1,6 @@
 /*global require, exports, module*/
 
-var Cla55 = require('cla55').cla55(Array),
+var Cla55 = require('cla55').create(Array),
     Token = require('./token'),
     Tokenizer;
 
