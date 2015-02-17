@@ -121,13 +121,13 @@ Composer = Cla55.extend({
                 .indentInc()
                 .write('that = this,')
                 .lineBreak()
-                .write('React = that.React,')
-                .lineBreak()
                 .write('data = that.proxy("data"),')
                 .lineBreak()
                 .write('component = that.proxy("component"),')
                 .lineBreak()
                 .write('concat = that.proxy("concat"),')
+                .lineBreak()
+                .write('element = that.proxy("element"),')
                 .lineBreak()
                 .write('helper = that.proxy("helper"),')
                 .lineBreak()
@@ -154,25 +154,38 @@ Composer = Cla55.extend({
     ElementOpening: {
         enter: function (ctx, node) {
             this.lineBreak()
-                .write('<')
-                .write(node.name.name);
+                .write('element(')
+                .writeString(node.name.name);
         },
         leave: function (ctx, node) {
             if (node.selfClosing) {
-                this.write('/>');
-            } else {
-                this.write('>');
+                this.write(')');
+            }
+        },
+        attributes: {
+            before: function (ctx, node) {
+                if (node.attributes.length >= 1) {
+                    this.write(', {');
+                } else {
+                    this.write(', null');
+                }
+            },
+            beforeEach: function (ctx, node, i) {
+                if (i) {
+                    this.write(', ');
+                }
+            },
+            after: function (ctx, node) {
+                if (node.attributes.length >= 1) {
+                    this.write('}');
+                }
             }
         }
     },
 
     ElementClosing: {
-        enter: function (ctx, node) {
-            this.write('</')
-                .write(node.name.name);
-        },
         leave: function (ctx, node) {
-            this.write('>');
+            this.write(')');
         }
     },
 
@@ -241,10 +254,10 @@ Composer = Cla55.extend({
 
     Expression: {
         enter: function (ctx, node) {
-            this.write('{');
+            this.write('');
         },
         leave: function (ctx, node) {
-            this.write('}');
+            this.write('');
         }
     },
 
@@ -300,19 +313,29 @@ Composer = Cla55.extend({
             if (ctx.parent().type !== 'Element') {
                 this.write(')');
             }
+        },
+        body: {
+            beforeEach: function (ctx, node, i) {
+                this.write(', ');
+            }
         }
     },
 
     Property: {
         enter: function (ctx, node) {
-            var name = (this.options.map && this.propsMap[node.name.name]) || node.name.name;
+            var name = (this.options.map && this.propsMap[node.name.name]) || node.name.name,
+                safeName = /^[a-z_][a-z0-9_]*$/i.test(name);
 
-            this.write(' ')
-                .write(name)
-                .write('=');
+            if (safeName) {
+                this.write(name);
+            } else {
+                this.writeString(name);
+            }
+
+            this.write(': ');
 
             if (node.value === null) {
-                this.write('{true}');
+                this.write('true');
             }
         },
         leave: function (ctx, node) {
@@ -322,7 +345,7 @@ Composer = Cla55.extend({
 
     Text: {
         enter: function (ctx, node) {
-            this.write(node.value);
+            this.writeString(node.value.replace(/(^(\n\r?|\r)+|(\n\r?|\r)+$)/g, ''));
         }
     },
 
