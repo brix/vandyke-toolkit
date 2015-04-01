@@ -81,7 +81,7 @@ Parser = Cla55.extend({
                     return (
                         token.type === 'Punctuator' && token.value === '{' &&
                         (
-                            (next.type === 'Punctuator' && next.value !== '/') ||
+                            (next.type === 'Punctuator' && next.value !== '/' && next.value !== ':') ||
                             next.type !== 'Punctuator'
                         )
                     );
@@ -275,7 +275,6 @@ Parser = Cla55.extend({
             return this.error(token);
         }
 
-
         return node;
     },
 
@@ -302,7 +301,9 @@ Parser = Cla55.extend({
 
     Attribute: function Attribute() {
         var node = this.create('Property'),
-            token = this.token();
+            token = this.token(),
+
+            isListener;
 
         if (!token.isEmpty()) {
             return;
@@ -316,12 +317,19 @@ Parser = Cla55.extend({
 
         node.name = this.Identifier();
 
+        // Check whether the attribute is an event listener
+        isListener = /^on/i.test(node.name.name);
+
         token = token.next();
 
         if (token.type === 'Punctuator' && token.value === '=') {
             token = token.next();
 
-            node.value = this.detect('Expression', 'String');
+            if (isListener) {
+                node.value = this.Listener();
+            } else {
+                node.value = this.detect('Expression', 'String');
+            }
 
             if (!node.value) {
                 return this.error(token);
@@ -357,6 +365,35 @@ Parser = Cla55.extend({
 
         token = this.token().findNextNotEmpty(true);
 
+        if (!token.isBraceClose()) {
+            return this.error(token);
+        }
+
+        token.next();
+
+        return node;
+    },
+
+    Listener: function () {
+        var node = this.create('Listener'),
+            token = this.token();
+
+        // Expect open brace
+        if (!token.isBraceOpen()) {
+            return this.error(token);
+        }
+
+        token = this.token().next();
+
+        if (token.type !== 'Word' || !(/^([a-z][a-z0-9\-_]*)$/i).test(token.value)) {
+            return this.error(token);
+        }
+
+        node.name = this.Identifier();
+
+        token = this.token();
+
+        // Expect close brace
         if (!token.isBraceClose()) {
             return this.error(token);
         }
@@ -457,6 +494,9 @@ Parser = Cla55.extend({
         token = this.token().next();
 
         if (token.isHelperAlternate()) {
+            // Next after `:`
+            token = this.token().next();
+
             node.helperAlternate = this.create('HelperAlternate');
             node.helperAlternate.name = this.Identifier();
 

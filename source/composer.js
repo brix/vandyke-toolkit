@@ -1,27 +1,46 @@
 /*global require, exports, module*/
 
-var Cla55 = require('cla55'),
+var _ = require('lodash'),
+    Cla55 = require('cla55'),
+
+    Writer = require('./writer'),
     Traverser = require('./traverser'),
     Composer;
 
 Composer = Cla55.extend({
     constructor: function constructor(options) {
-        this.options = {
-            map: true,
-            indent: '    ',
-            lineBreak: '\n'
+        this._options = {
+            map: options && options.map === false ? false : true,
+            indent: options && options.indent || '    ',
+            lineBreak: options && options.lineBreak || '\n'
         };
 
-        this.content = '';
-        this._indent = 0;
+        this._content = new Writer({
+            indent: this.option('indent'),
+            lineBreak: this.option('lineBreak')
+        });
+
+        // Prevent changes on instance affects class
+        this.propsMap = _.assign({}, this.propsMap);
+
+        this._proxies = [];
     },
 
     propsMap: {
-        'class': 'className'
+        // html class to React className
+        'class': 'className',
+
+        // html events to React camel case events
+        '(on)([a-z])(.*)': function (all, $1, $2, $3) {
+            return $1 + $2.toUpperCase() + $3;
+        }
     },
 
     compose: function compose(ast) {
         var that = this;
+
+        // Initialize props name mapping
+        this.mapPropName(true);
 
         Traverser.traverse(ast, {
             enter: function (node) {
@@ -55,129 +74,164 @@ Composer = Cla55.extend({
                 }
             }
         });
+
+        return this.content().read();
     },
 
-    option: function options(key, val) {
-        if (arguments.length === 2) {
-            this.options[key] = val;
-        }
+    mapPropName: function (propName) {
+        // Initialize
+        if (propName === true) {
+            if (this.option('map')) {
+                var propsMap = _.keys(this.propsMap).map(function (exp) {
+                        var pattern = new RegExp('^' + exp + '$'),
+                            replace = this.propsMap[exp];
 
-        return this.options[key];
-    },
+                        return function (name) {
+                            if (pattern.test(name)) {
+                                if (typeof replace === 'string') {
+                                    name = replace;
+                                } else {
+                                    name = name.replace(pattern, replace);
+                                }
+                            }
 
-    write: function write(chunk) {
-        var lineBreak = this.option('lineBreak'),
-            i = 0;
+                            return name;
+                        };
+                    }, this);
 
-        // Generate indent only for new line
-        if (this.content.substr(this.content.length - lineBreak.length, lineBreak.length) === lineBreak) {
-            while (i < this._indent) {
-                this.content += this.option('indent');
-                i++;
+                // Define the map method
+                this._mapPropName = function (propName) {
+                    propsMap.forEach(function (map) {
+                        propName = map(propName);
+                    });
+
+                    return propName;
+                };
+            } else {
+                // Define the dummy map method
+                this._mapPropName = function (propName) {
+                    return propName;
+                };
             }
+
+            return;
         }
 
-        this.content += chunk;
-
-        return this;
+        // Map property name
+        return this._mapPropName(propName);
     },
 
-    writeString: function writeString(chunk) {
-        return this.write(JSON.stringify(chunk.toString()));
-    },
-
-    lineBreak: function lineBreak() {
-        var lineBreak = this.option('lineBreak'),
-            i = 0;
-
-        // Prevent double line breaks
-        if (this.content.substr(this.content.length - lineBreak.length, lineBreak.length) === lineBreak) {
-            return this;
+    option: function option(key, val) {
+        if (arguments.length === 2) {
+            this._options[key] = val;
         }
 
-        this.content += this.option('lineBreak');
-
-        return this;
+        return this._options[key];
     },
 
-    indentInc: function indentInc() {
-        this._indent++;
-
-        return this;
+    content: function () {
+        return this._content;
     },
 
-    indentDec: function indentDec() {
-        this._indent--;
-
-        return this;
+    setProxy: function (name) {
+        if (this._proxies.indexOf(name) === -1) {
+            this._proxies.push(name);
+        }
     },
 
     Template: {
         enter: function (ctx, node) {
-            this.write('function template() {')
-                .lineBreak()
+            this.content()
                 .indentInc()
-                .write('var ')
-                .indentInc()
-                .write('that = this,')
-                .lineBreak()
-                .write('data = that.proxy("data"),')
-                .lineBreak()
-                .write('component = that.proxy("component"),')
-                .lineBreak()
-                .write('concat = that.proxy("concat"),')
-                .lineBreak()
-                .write('element = that.proxy("element"),')
-                .lineBreak()
-                .write('helper = that.proxy("helper"),')
-                .lineBreak()
-                .write('list = that.proxy("list"),')
-                .lineBreak()
-                .write('listener = that.proxy("listener");')
-                .lineBreak()
-                .indentDec()
-                .lineBreak()
-                .write('return (')
-                .indentInc()
-                .lineBreak();
+                .indentInc();
         },
         leave: function (ctx, node) {
-            this.indentDec()
+            var head = new Writer({
+                    indent: this.option('indent'),
+                    lineBreak: this.option('lineBreak')
+                }),
+                foot = new Writer({
+                    indent: this.option('indent'),
+                    lineBreak: this.option('lineBreak')
+                });
+
+            // Template HEAD
+            head.write('function template(vandyke, ctx) {')
+                .lineBreak()
+                .indentInc();
+
+            this._proxies.forEach(function (name, i) {
+                if (i === 0) {
+                    head.write('var ');
+                } else {
+                    head.lineBreak();
+                }
+
+                head.write(name + ' = vandyke.proxy("' + name + '", ctx)');
+
+                if (i === this._proxies.length - 1) {
+                    head.write(';');
+
+                    if (i !== 0) {
+                        head.indentDec();
+                    }
+                } else {
+                    head.write(',');
+
+                    if (i === 0) {
+                        head.indentInc();
+                    }
+                }
+            }, this);
+
+            head.lineBreak()
+                .lineBreak()
+                .write('return (');
+
+            // Template FOOT
+            foot.indentInc()
                 .lineBreak()
                 .write(');')
                 .lineBreak()
                 .indentDec()
                 .write('}');
+
+            // Wrap template
+            this.content().wrap(head.read(), foot.read());
         }
     },
 
     ElementOpening: {
         enter: function (ctx, node) {
-            this.lineBreak()
-                .write('element(')
+            // Register use of component shortcut
+            this.setProxy('component');
+
+            this.content()
+                .lineBreak()
+                .write('component(')
                 .writeString(node.name.name);
         },
         leave: function (ctx, node) {
             if (node.selfClosing) {
-                this.write(')');
+                this.content().write(')');
             }
         },
         attributes: {
             before: function (ctx, node) {
                 if (node.attributes.length >= 1) {
-                    this.write(', {');
+                    this.content().write(', {');
                 } else {
-                    this.write(', null');
+                    this.content().write(', null');
                 }
             },
             beforeEach: function (ctx, node, i) {
                 if (i) {
-                    this.write(', ');
+                    this.content().write(', ');
                 }
             },
             after: function (ctx, node) {
                 if (node.attributes.length >= 1) {
-                    this.write('}');
+                    this.content().write('}');
                 }
             }
         }
@@ -185,26 +239,31 @@ Composer = Cla55.extend({
 
     ElementClosing: {
         leave: function (ctx, node) {
-            this.write(')');
+            this.content().write(')');
         }
     },
 
     Helper: {
         enter: function (ctx, node) {
-            this.write('helper(');
+            // Register use of helper shortcut
+            this.setProxy('helper');
+
+            this.content().write('helper(');
         },
         leave: function (ctx, node) {
-            this.write(')');
+            this.content().write(')');
         },
         body: {
             before: function (ctx, node) {
-                this.write(', function () {')
+                this.content()
+                    .write(', function () {')
                     .indentInc()
                     .lineBreak()
                     .write('return (');
             },
             after: function (ctx, node) {
-                this.write(');')
+                this.content()
+                    .write(');')
                     .indentDec()
                     .lineBreak()
                     .write('}');
@@ -214,14 +273,14 @@ Composer = Cla55.extend({
 
     HelperOpening: {
         enter: function (ctx, node) {
-            this.writeString(node.name.name);
+            this.content().writeString(node.name.name);
         },
         arguments: {
             before: function (ctx, node) {
-                this.write(', [');
+                this.content().write(', [');
             },
             after: function (ctx, node) {
-                this.write(']');
+                this.content().write(']');
             }
         }
     },
@@ -229,13 +288,15 @@ Composer = Cla55.extend({
     HelperAlternate: {
         body: {
             before: function (ctx, node) {
-                this.write(', function () {')
+                this.content()
+                    .write(', function () {')
                     .indentInc()
                     .lineBreak()
                     .write('return ');
             },
             after: function (ctx, node) {
-                this.write(';')
+                this.content()
+                    .write(';')
                     .indentDec()
                     .lineBreak()
                     .write('}');
@@ -243,9 +304,25 @@ Composer = Cla55.extend({
         }
     },
 
+    Listener: {
+        enter: function (ctx, node) {
+            // Register use of listener shortcut
+            this.setProxy('listener');
+
+            this.content()
+                .write('listener(')
+                .writeString(node.name.name)
+                .write(')');
+        }
+    },
+
     Data: {
         enter: function (ctx, node) {
-            this.write('data(')
+            // Register use of data shortcut
+            this.setProxy('data');
+
+            this.content()
+                .write('data(')
                 .writeString(node.name.name)
                 .write(node.scope ? ', true' : '')
                 .write(')');
@@ -254,24 +331,27 @@ Composer = Cla55.extend({
 
     Expression: {
         enter: function (ctx, node) {
-            this.write('');
+            this.content().write('');
         },
         leave: function (ctx, node) {
-            this.write('');
+            this.content().write('');
         }
     },
 
     Concat: {
         enter: function (ctx, node) {
-            this.write('concat(');
+            // Register use of concat shortcut
+            this.setProxy('concat');
+
+            this.content().write('concat(');
         },
         leave: function (ctx, node) {
-            this.write(')');
+            this.content().write(')');
         },
         concat: {
             beforeEach: function (ctx, node, i) {
                 if (i) {
-                    this.write(', ');
+                    this.content().write(', ');
                 }
             }
         }
@@ -279,19 +359,24 @@ Composer = Cla55.extend({
 
     ListBlock: {
         enter: function (ctx, node) {
-            this.write('list(')
+            // Register use of list shortcut
+            this.setProxy('list');
+
+            this.content()
+                .write('list(')
                 .lineBreak()
                 .indentInc();
         },
         leave: function (ctx, node) {
-            this.indentDec()
+            this.content()
+                .indentDec()
                 .lineBreak()
                 .write(')');
         },
         list: {
             beforeEach: function (ctx, node, i) {
                 if (i) {
-                    this.write(', ');
+                    this.content().write(', ');
                 }
             }
         }
@@ -300,42 +385,49 @@ Composer = Cla55.extend({
     Block: {
         enter: function (ctx, node) {
             if (ctx.parent().type !== 'Element') {
-                this.write('block(');
+                // Register use of block shortcut
+                this.setProxy('block');
+
+                this.content().write('block(');
             }
 
-            this.lineBreak()
+            this.content()
+                .lineBreak()
                 .indentInc();
         },
         leave: function (ctx, node) {
-            this.indentDec()
+            this.content()
+                .indentDec()
                 .lineBreak();
 
             if (ctx.parent().type !== 'Element') {
-                this.write(')');
+                this.content().write(')');
             }
         },
         body: {
             beforeEach: function (ctx, node, i) {
-                this.write(', ');
+                this.content().write(', ');
             }
         }
     },
 
     Property: {
         enter: function (ctx, node) {
-            var name = (this.options.map && this.propsMap[node.name.name]) || node.name.name,
-                safeName = /^[a-z_][a-z0-9_]*$/i.test(name);
+            var propName = this.mapPropName(node.name.name),
+
+                // Check whether the prop name is a safe JavaScript property name
+                safeName = /^[a-z_][a-z0-9_]*$/i.test(propName);
 
             if (safeName) {
-                this.write(name);
+                this.content().write(propName);
             } else {
-                this.writeString(name);
+                this.content().writeString(propName);
             }
 
-            this.write(': ');
+            this.content().write(': ');
 
             if (node.value === null) {
-                this.write('true');
+                this.content().write('true');
             }
         },
         leave: function (ctx, node) {
@@ -345,28 +437,34 @@ Composer = Cla55.extend({
 
     Text: {
         enter: function (ctx, node) {
-            this.writeString(node.value.replace(/(^(\n\r?|\r)+|(\n\r?|\r)+$)/g, ''));
+            this.content().writeString(node.value.replace(/(^(\n\r?|\r)+|(\n\r?|\r)+$)/g, ''));
         }
     },
 
     String: {
         enter: function (ctx, node) {
-            this.write(node.value);
+            this.content().write(node.value);
         }
     },
 
     JavaScript: {
         enter: function (ctx, node) {
-            this.write(node.value);
+            this.content().write(node.value);
         }
     }
 }, {
     compose: function compose(ast, options) {
-        var composer = new this(options)
+        return new this(options).compose(ast);
+    },
 
-        composer.compose(ast);
+    extend: function extend() {
+        // For overwriting extend the static extend of the base class in required (not the extend shortcut)
+        var Child = Cla55.Cla55.extend.apply(this, arguments);
 
-        return composer.content;
+        // Prevent changes on child class affects parent class
+        Child.prototype.propsMap = _.create(Child.prototype.propsMap);
+
+        return Child;
     }
 });
 

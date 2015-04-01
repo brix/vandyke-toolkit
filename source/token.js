@@ -102,6 +102,12 @@ Token = Cla55.extend({
         var prev = this.context[this.context.indexOf(this) - 1],
             next = this.context[this.context.indexOf(this) + 1];
 
+        return (
+            prev && prev.isBraceOpen() &&
+            this.type === 'Punctuator' && this.value === ':' &&
+            next && next.type === 'Word' && next.value === 'else'
+        );
+
         return this.type === 'Word' && this.value === 'else' && prev && prev.isBraceOpen();
     },
 
@@ -109,8 +115,10 @@ Token = Cla55.extend({
         var prev = this.context[this.context.indexOf(this) - 1],
             next = this.context[this.context.indexOf(this) + 1];
 
-        return (this.type === 'Punctuator' && this.value === '/' && prev && prev.isBraceOpen()) ||
-            (this.type === 'Punctuator' && this.value === '/' && next && next.isBraceClose());
+        return (
+            (this.type === 'Punctuator' && this.value === '/' && prev && prev.isBraceOpen()) ||
+            (this.type === 'Punctuator' && this.value === '/' && next && next.isBraceClose())
+        );
     },
 
     isTextSnippet: function isTextSnippet() {
