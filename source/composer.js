@@ -29,19 +29,27 @@ Composer = Cla55.extend({
     compose: function compose(ast) {
         var that = this;
 
-        //
+        // Expect argument ast
         if (!ast) {
-            throw 'TODO: Error message for ast entry';
+            throw 'Missing argument \'ast\'.';
         }
 
-        //
+        // Create copy, do not manipulate the original ast
+        ast = JSON.parse(JSON.stringify(ast));
+
+        // Extpact root node from type AST
         if (ast.type !== 'AST') {
-            throw 'TODO: Error message for ast entry';
+            throw 'Expected node from type \'AST\'.';
         }
 
-        //
+        // Filter: skip empty text nodes
+        ast.body = ast.body.filter(function (node) {
+            return node.type !== 'Text' || !/^\s*$/.test(node.value);
+        });
+
+        // Expect exactly one body item
         if (ast.body.length !== 1) {
-            throw 'TODO: Error message for ast entry';
+            throw 'Expected exactly on body item for AST.';
         }
 
         this.Traverser.traverse(ast, {
@@ -439,12 +447,12 @@ Composer = Cla55.extend({
         return new this(options).compose(ast);
     },
 
-    mapProps: function (astOrig) {
+    mapProps: function (ast) {
         // Create copy, do not manipulate the original ast
-        var astCopy = JSON.parse(JSON.stringify(astOrig));
+        ast = JSON.parse(JSON.stringify(ast));
 
         // Traverse ast to map property names
-        this.prototype.Traverser.traverse(astCopy, {
+        this.prototype.Traverser.traverse(ast, {
             enter: function (node) {
                 if (node.type === 'Identifier' && this.parent().type === 'Property') {
                     // Rename props identifier
@@ -463,7 +471,7 @@ Composer = Cla55.extend({
         });
 
         // Map property name
-        return astCopy;
+        return ast;
     }
 });
 

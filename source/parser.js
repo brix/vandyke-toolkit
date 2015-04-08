@@ -218,9 +218,6 @@ Parser = Cla55.extend({
                 // Stop reading ast body
                 break;
             }
-
-            // Read next/current not empty token
-            this.findNextNotEmpty(true).token();
         }
 
         return this.ast;
@@ -258,9 +255,6 @@ Parser = Cla55.extend({
                 // Stop reading block body
                 break;
             }
-
-            // Read next/current not empty token
-            token = this.findNextNotEmpty(true).token();
         }
 
         return node;
@@ -614,9 +608,6 @@ Parser = Cla55.extend({
                 // Stop reading list block items
                 break;
             }
-
-            // Read next/current not empty token
-            token = this.findNextNotEmpty(true).token();
         }
 
         // Return null if list has no items
@@ -681,6 +672,17 @@ Parser = Cla55.extend({
             // Loop variables
             i, l, snippet;
 
+        // Read prev token
+        token = this.prev().token();
+
+        // Find all prev empty tokens
+        if (token.is('Empty')) {
+            this.findPrevNotEmpty();
+        }
+
+        // Read next token
+        token = this.next().token();
+
         // Test token for text validity
         this.expect(this.detectIsText(token));
 
@@ -701,39 +703,12 @@ Parser = Cla55.extend({
             this.next();
         }
 
-        // Trim left white space tokens
-        for (i = 0, l = snippets.length; i < l; i++) {
-            snippet = snippets[i];
-
-            if (snippet.isNot('Empty')) {
-                break;
-            }
-        }
-
-        snippets = snippets.splice(i, snippets.length - i);
-
-        // Trim right white space tokens
-        for (i = 0, l = snippets.length; i < l; l--) {
-            snippet = snippets[l - 1];
-
-            if (snippet.isNot('Empty')) {
-                break;
-            }
-        }
-
-        snippets = snippets.splice(0, l);
-
-        if (snippets.length) {
-            // Merge snippets to text value
-            node.value = snippets
-                .map(function (snippet) {
-                    return snippet.value;
-                })
-                .join('');
-        } else {
-            // White space only is not text
-            node = null;
-        }
+        // Merge snippets to text value
+        node.value = snippets
+            .map(function (snippet) {
+                return snippet.value;
+            })
+            .join('');
 
         return node;
     }
