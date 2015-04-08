@@ -4,138 +4,75 @@ var Cla55 = require('cla55'),
     Token;
 
 Token = Cla55.extend({
-    constructor: function constructor(context, type, value, range, loc) {
-        this.context = context;
+    constructor: function constructor(type, value, range, loc) {
         this.type = type;
         this.value = value;
         this.range = range;
         this.loc = loc;
     },
 
-    prev: function prev() {
-        return this.context.token(this.context[this.context.indexOf(this) - 1]);
-    },
+    hasValue: function hasValue() {
+        var value,
+            i,
+            l;
 
-    next: function next() {
-        return this.context.token(this.context[this.context.indexOf(this) + 1]);
-    },
+        for (i = 0, l = arguments.length; i < l; i++) {
+            value = arguments[i];
+            match = value instanceof RegExp ? value.test(this.value) : this.value === value;
 
-    findPrevEmpty: function findPrevEmpty(includeCurrent) {
-        var i = this.context.indexOf(this) - (includeCurrent ? 0 : 1);
-
-        while (this.context[i] && !this.context[i].isEmpty()) {
-            i--;
+            if (match) {
+                return true;
+            }
         }
 
-        return this.context.token(this.context[i]);
+        return false;
     },
 
-    findNextEmpty: function findNextEmpty(includeCurrent) {
-        var i = this.context.indexOf(this) + (includeCurrent ? 0 : 1);
+    hasNotValue: function hasNotValue() {
+        return !this.hasValue.apply(this, arguments);
+    },
 
-        while (this.context[i] && !this.context[i].isEmpty()) {
-            i++;
+    is: function is() {
+        var notExpr = /^Not/,
+            not,
+
+            name,
+            i,
+            l;
+
+        for (i = 0, l = arguments.length; i < l; i++) {
+            name = arguments[i];
+            not = notExpr.test(name) && (name = name.replace(notExpr, '')) && true;
+            match = (this['_is' + name] && this['_is' + name]()) || this.type === name;
+
+            if (not && !match || !not && match) {
+                return true;
+            }
         }
 
-        return this.context.token(this.context[i]);
+        return false;
     },
 
-    findPrevNotEmpty: function findPrevNotEmpty(includeCurrent) {
-        var i = this.context.indexOf(this) - (includeCurrent ? 0 : 1);
-
-        while (this.context[i] && this.context[i].isEmpty()) {
-            i--;
-        }
-
-        return this.context.token(this.context[i]);
+    isNot: function isNot() {
+        return !this.is.apply(this, arguments);
     },
 
-    findNextNotEmpty: function findNextNotEmpty(includeCurrent) {
-        var i = this.context.indexOf(this) + (includeCurrent ? 0 : 1);
-
-        while (this.context[i] && this.context[i].isEmpty()) {
-            i++;
-        }
-
-        return this.context.token(this.context[i]);
+    // Special tests
+    _isEmpty: function isEmpty() {
+        return this.is('LineBreak') || this.is('WhiteSpace');
     },
 
-    isEmpty: function isEmpty() {
-        return this.type === 'LineBreak' || this.type === 'WhiteSpace';
+    _isNumberIdentifier: function isNumberIdentifier() {
+        return this.is('Number') && this.hasValue(/^[0-9]+$/);
     },
 
-    isDataIdentifier: function isDataIdentifier() {
-        return this.type === 'Word' && (/^([a-z][a-z0-9\-_]*)$/i).test(this.value);
-    },
-
-    isHelperIdentifier: function isHelperIdentifier() {
-        return this.type === 'Word' && (/^([a-z][a-z0-9\-_]*)$/i).test(this.value);
-    },
-
-    isElementIdentifier: function isElementIdentifier() {
-        return this.type === 'Word' && (/^([a-z][a-z0-9\-_]*)$/i).test(this.value);
-    },
-
-    isAttributeIdentifier: function isAttributeIdentifier() {
-        return this.type === 'Word' && (/^([a-z][a-z0-9\-_]*)$/i).test(this.value);
-    },
-
-    isAttributeString: function isAttributeString() {
-        return this.type === 'JavaScript' && (/^"/).test(this.value);
-    },
-
-    isBraceOpen: function isBraceOpen() {
-        return this.type === 'Punctuator' && this.value === '{';
-    },
-
-    isBraceClose: function isBraceClose() {
-        return this.type === 'Punctuator' && this.value === '}';
-    },
-
-    isHelperOpening: function isHelperOpening() {
-        var prev = this.context[this.context.indexOf(this) - 1];
-
-        return this.type === 'Punctuator' && this.value === '#' && prev && prev.isBraceOpen();
-    },
-
-    isHelperAlternate: function isHelperAlternate() {
-        var prev = this.context[this.context.indexOf(this) - 1],
-            next = this.context[this.context.indexOf(this) + 1];
-
-        return (
-            prev && prev.isBraceOpen() &&
-            this.type === 'Punctuator' && this.value === ':' &&
-            next && next.type === 'Word' && next.value === 'else'
-        );
-
-        return this.type === 'Word' && this.value === 'else' && prev && prev.isBraceOpen();
-    },
-
-    isHelperClosing: function isHelperClosing() {
-        var prev = this.context[this.context.indexOf(this) - 1],
-            next = this.context[this.context.indexOf(this) + 1];
-
-        return (
-            (this.type === 'Punctuator' && this.value === '/' && prev && prev.isBraceOpen()) ||
-            (this.type === 'Punctuator' && this.value === '/' && next && next.isBraceClose())
-        );
-    },
-
-    isTextSnippet: function isTextSnippet() {
-        return (
-            this.type !== 'Punctuator' ||
-            (
-                this.type === 'Punctuator' && this.value !== '{' &&
-                this.type === 'Punctuator' && this.value !== '<'
-            )
-        );
-    },
-
-    fromTo: function fromTo(tokenFrom, tokenTo) {
-        var indexFrom = this.context.indexOf(tokenFrom),
-            indexTo = this.context.indexOf(tokenTo);
-
-        return this.context.slice(indexFrom, indexTo);
+    toJSON: function toJSON() {
+        return {
+            type: this.type,
+            value: this.value,
+            range: this.range,
+            loc: this.loc
+        };
     }
 });
 
