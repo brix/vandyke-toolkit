@@ -74,7 +74,9 @@ Traverser = Cla55.extend({
     }
 }, {
     Syntax: {
+        'AST': 'AST',
         'Block': 'Block',
+        'Boolean': 'Boolean',
         'Data': 'Data',
         'Element': 'Element',
         'ElementOpening': 'ElementOpening',
@@ -86,18 +88,19 @@ Traverser = Cla55.extend({
         'HelperAlternate': 'HelperAlternate',
         'HelperClosing': 'HelperClosing',
         'Identifier': 'Identifier',
-        'JavaScript': 'JavaScript',
+        'List': 'List',
         'Listener': 'Listener',
-        'ListBlock': 'ListBlock',
+        'Number': 'Number',
         'Property': 'Property',
         'String': 'String',
-        'Template': 'Template',
         'Text': 'Text'
     },
 
     VisitorKeys: {
+        'AST': ['body'],
         'Block': ['body'],
-        'Data': ['name'],
+        'Boolean': [],
+        'Data': ['path'],
         'Element': ['elementOpening', 'body', 'elementClosing'],
         'ElementOpening': ['name', 'attributes'],
         'ElementClosing': ['name'],
@@ -108,12 +111,11 @@ Traverser = Cla55.extend({
         'HelperAlternate': ['name', 'body'],
         'HelperClosing': ['name'],
         'Identifier': [],
-        'JavaScript': [],
+        'List': ['list'],
         'Listener': ['name'],
-        'ListBlock': ['list'],
+        'Number': [],
         'Property': ['name', 'value'],
         'String': [],
-        'Template': ['element'],
         'Text': []
     },
 

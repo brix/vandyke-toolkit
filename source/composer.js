@@ -20,29 +20,31 @@ Composer = Cla55.extend({
             lineBreak: this.option('lineBreak')
         });
 
-        // Prevent changes on instance affects class
-        this.propsMap = _.assign({}, this.propsMap);
-
         this._proxies = [];
     },
 
-    propsMap: {
-        // html class to React className
-        'class': 'className',
-
-        // html events to React camel case events
-        '(on)([a-z])(.*)': function (all, $1, $2, $3) {
-            return $1 + $2.toUpperCase() + $3;
-        }
-    },
+    // Reference traverser class
+    Traverser: Traverser,
 
     compose: function compose(ast) {
         var that = this;
 
-        // Initialize props name mapping
-        this.mapPropName(true);
+        //
+        if (!ast) {
+            throw 'TODO: Error message for ast entry';
+        }
 
-        Traverser.traverse(ast, {
+        //
+        if (ast.type !== 'AST') {
+            throw 'TODO: Error message for ast entry';
+        }
+
+        //
+        if (ast.body.length !== 1) {
+            throw 'TODO: Error message for ast entry';
+        }
+
+        this.Traverser.traverse(ast, {
             enter: function (node) {
                 if (that[node.type] && that[node.type].enter) {
                     that[node.type].enter.call(that, this, node);
@@ -78,49 +80,6 @@ Composer = Cla55.extend({
         return this.content().read();
     },
 
-    mapPropName: function (propName) {
-        // Initialize
-        if (propName === true) {
-            if (this.option('map')) {
-                var propsMap = _.keys(this.propsMap).map(function (exp) {
-                        var pattern = new RegExp('^' + exp + '$'),
-                            replace = this.propsMap[exp];
-
-                        return function (name) {
-                            if (pattern.test(name)) {
-                                if (typeof replace === 'string') {
-                                    name = replace;
-                                } else {
-                                    name = name.replace(pattern, replace);
-                                }
-                            }
-
-                            return name;
-                        };
-                    }, this);
-
-                // Define the map method
-                this._mapPropName = function (propName) {
-                    propsMap.forEach(function (map) {
-                        propName = map(propName);
-                    });
-
-                    return propName;
-                };
-            } else {
-                // Define the dummy map method
-                this._mapPropName = function (propName) {
-                    return propName;
-                };
-            }
-
-            return;
-        }
-
-        // Map property name
-        return this._mapPropName(propName);
-    },
-
     option: function option(key, val) {
         if (arguments.length === 2) {
             this._options[key] = val;
@@ -139,7 +98,7 @@ Composer = Cla55.extend({
         }
     },
 
-    Template: {
+    AST: {
         enter: function (ctx, node) {
             this.content()
                 .indentInc()
@@ -201,6 +160,16 @@ Composer = Cla55.extend({
         }
     },
 
+    Identifier: {
+        enter: function (ctx, node) {
+            var parentType = ctx.parent().type
+
+            if (parentType === 'ElementOpening' || parentType === 'HelperOpening' || parentType === 'Data' || parentType === 'Listener') {
+                this.content().writeString(node.name);
+            }
+        }
+    },
+
     ElementOpening: {
         enter: function (ctx, node) {
             // Register use of component shortcut
@@ -208,8 +177,7 @@ Composer = Cla55.extend({
 
             this.content()
                 .lineBreak()
-                .write('component(')
-                .writeString(node.name.name);
+                .write('component(');
         },
         leave: function (ctx, node) {
             if (node.selfClosing) {
@@ -272,9 +240,6 @@ Composer = Cla55.extend({
     },
 
     HelperOpening: {
-        enter: function (ctx, node) {
-            this.content().writeString(node.name.name);
-        },
         arguments: {
             before: function (ctx, node) {
                 this.content().write(', [');
@@ -309,10 +274,10 @@ Composer = Cla55.extend({
             // Register use of listener shortcut
             this.setProxy('listener');
 
-            this.content()
-                .write('listener(')
-                .writeString(node.name.name)
-                .write(')');
+            this.content().write('listener(');
+        },
+        leave: function () {
+            this.content().write(')');
         }
     },
 
@@ -321,11 +286,22 @@ Composer = Cla55.extend({
             // Register use of data shortcut
             this.setProxy('data');
 
+            this.content().write('data(');
+
+            this.content().write('[');
+        },
+        leave: function (ctx, node) {
             this.content()
-                .write('data(')
-                .writeString(node.name.name)
+                .write(']')
                 .write(node.scope ? ', true' : '')
                 .write(')');
+        },
+        path: {
+            beforeEach: function (ctx, node, i) {
+                if (i && node.path[i].type === 'Identifier') {
+                    this.content().write(', ');
+                }
+            }
         }
     },
 
@@ -357,7 +333,7 @@ Composer = Cla55.extend({
         }
     },
 
-    ListBlock: {
+    List: {
         enter: function (ctx, node) {
             // Register use of list shortcut
             this.setProxy('list');
@@ -413,7 +389,7 @@ Composer = Cla55.extend({
 
     Property: {
         enter: function (ctx, node) {
-            var propName = this.mapPropName(node.name.name),
+            var propName = node.name.name,
 
                 // Check whether the prop name is a safe JavaScript property name
                 safeName = /^[a-z_][a-z0-9_]*$/i.test(propName);
@@ -429,9 +405,6 @@ Composer = Cla55.extend({
             if (node.value === null) {
                 this.content().write('true');
             }
-        },
-        leave: function (ctx, node) {
-
         }
     },
 
@@ -447,24 +420,50 @@ Composer = Cla55.extend({
         }
     },
 
-    JavaScript: {
+    Number: {
+        enter: function (ctx, node) {
+            this.content().write(node.value);
+        }
+    },
+
+    Boolean: {
         enter: function (ctx, node) {
             this.content().write(node.value);
         }
     }
 }, {
     compose: function compose(ast, options) {
+        // Map property names
+        ast = this.mapProps(ast);
+
         return new this(options).compose(ast);
     },
 
-    extend: function extend() {
-        // For overwriting extend the static extend of the base class in required (not the extend shortcut)
-        var Child = Cla55.Cla55.extend.apply(this, arguments);
+    mapProps: function (astOrig) {
+        // Create copy, do not manipulate the original ast
+        var astCopy = JSON.parse(JSON.stringify(astOrig));
 
-        // Prevent changes on child class affects parent class
-        Child.prototype.propsMap = _.create(Child.prototype.propsMap);
+        // Traverse ast to map property names
+        this.prototype.Traverser.traverse(astCopy, {
+            enter: function (node) {
+                if (node.type === 'Identifier' && this.parent().type === 'Property') {
+                    // Rename props identifier
+                    node.name = node.name
+                        .replace(/^class$/, function () {
+                            return 'className';
+                        })
+                        .replace(/^(on)([a-z])(.*)$/, function (_, $1, $2, $3) {
+                            return $1 + $2.toUpperCase() + $3;
+                        });
+                }
+            },
+            leave: function () {
 
-        return Child;
+            }
+        });
+
+        // Map property name
+        return astCopy;
     }
 });
 
