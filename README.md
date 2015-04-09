@@ -2,11 +2,7 @@
 
 ## Template markup
 
-### Content
-
-Content can be a mix of `expressions`, `elements` and `text`. The template whole needs to wraped in a single root `element`.
-
-### DOM
+### Component
 
 #### Element
 
@@ -14,52 +10,103 @@ Content can be a mix of `expressions`, `elements` and `text`. The template whole
 
 `<element attribute attributeN/>` Native self closing HTML element or React component with one or more attributes
 
-`<element>` content `</element>` Native HTML element or React component with element body and without attributes
+`<element> content </element>` Native HTML element or React component with element body and without attributes
 
-`<element attribute attributeN>` content `</element>` Native self closing HTML element or React component with element body and with one or more attributes
+* `content` can be multiple items of `Content`
+
+`<element attribute attributeN> content </element>` Native self closing HTML element or React component with element body and with one or more attributes
+
+* `content` can be multiple items of `Content`
 
 
 #### Attributes
 
-`attribute` Simple attribute without given value, value will be interpreted as `{true}`
+`attribute` Simple attribute without given value, value will be interpreted as `true`
 
 `attribute="simple string"` Simple string attribute as known in HTML
 
-`attribute={expression}` A template expression passed to this attribute
+`attribute=value` Pass an advanced value to this attribute
 
-### Expressions
+* `value` can be an `Expression`, `Chain` or `Helper`
 
-#### JavaScript
+### Content
 
-`{"foo"}` Native JavaScript string
+Content can be a mix of `expressions`, `elements`, `helpers` and `text`. The template whole needs to return a single root `element`.
 
-`{'foo'}` Native JavaScript string
+### Expression
 
-`{true}` Native Javascript boolean true
+`{expression}` Simple expression to provide advanced content
 
-`{false}` Native Javascript boolean false
+* `expression` can be `Boolean`, `Number`, `Variable` or `String`
+
+#### String
+
+`"foo"` Native JavaScript string with double quotes
+
+#### Number
+
+`1.234` Native Javascript number positive
+
+`-1.1234` Native Javascript number negative
+
+#### Boolean
+
+`true` Native Javascript boolean true
+
+`false` Native Javascript boolean false
 
 #### Variable
 
-`{name}` In scope variable access
+`name` In scope variable access
 
-`{@name}` Contextual variable access (e.g. `@index` in each helper)
+`@name` Contextual variable access (e.g. `@index` in each helper)
 
-`{../name}` Parent scope variable access
+`../name` Parent scope variable access
 
-#### Helper
+`../../sub.object.name` Path variable access
 
-`{#helper/}`
+### Helper
 
-`{#helper argument/}` 
+`{#helper/}` Simple helper without any arguments and body
 
-`{#helper}` content `{/helper}` 
+`{#helper argument/}` Simple helper with argument
 
-`{#helper argument}` content `{/helper}` 
+* `argument` can be an `Boolean`, `Number`, `Variable` or `String` 
 
-#### Chain
+**In element body:**
 
-`{foo + ' bar ' + bar}`
+`{#helper} content {/helper}` Block helper containing content
 
+* `content` can be multiple items of `Content`
 
+`{#helper argument} content {/helper}` Block helper with argument and containing content
 
+* `argument` can be an `Boolean`, `Number`, `Variable` or `String`
+* `content` can be multiple items of `Content`
+
+`{#helper argument} content {:else} content {/helper}` Block helper with argument, containing content and alternate content
+
+* `argument` can be an `Boolean`, `Number`, `Variable` or `String`
+* `content` can be multiple items of `Content`
+
+**In attribute value:**
+
+`{#helper} content {/helper}` Block helper containing content
+
+* `content` can be `Boolean`, `Chain`, `Helper`, `Number`, `Variable` or `String`
+
+`{#helper argument} content {/helper}` Block helper with argument and containing content
+
+* `argument` can be an `Boolean`, `Number`, `Variable` or `String`
+* `content` can be `Boolean`, `Chain`, `Helper`, `Number`, `Variable` or `String`
+
+`{#helper argument} content {:else} content {/helper}` Block helper with argument, containing content and alternate content
+
+* `argument` can be an `Boolean`, `Number`, `Variable` or `String`
+* `content` can be `Boolean`, `Chain`, `Helper`, `Number`, `Variable` or `String`
+
+### Chain
+
+Concat multiple items of `Boolean`, `Helper`, `Number`, `Variable` and `String` to a single String.
+
+Example: `{foo + ' bar ' + bar}`
