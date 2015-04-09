@@ -1,7 +1,6 @@
 /*global require, exports, module*/
 
-var _ = require('lodash'),
-    Cla55 = require('cla55'),
+var Cla55 = require('cla55'),
 
     Writer = require('./writer'),
     Traverser = require('./traverser'),

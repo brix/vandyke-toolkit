@@ -24,8 +24,8 @@
     "tools"
   ],
   "dependencies": {
-    "cla55": "*",
-    "lodash": "*"
+    "cla55": "~0.1.3",
+    "vandyke": "*"
   },
   "devDependencies": {}
 }
