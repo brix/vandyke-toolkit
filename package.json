@@ -15,7 +15,7 @@
   "bugs": {
     "url": "https://github.com/brix/vandyke-tools/issues"
   },
-  "main": "source/vandyke.js",
+  "main": "source/vandyke-toolkit.js",
   "keywords": [
     "vandyke",
     "react",
