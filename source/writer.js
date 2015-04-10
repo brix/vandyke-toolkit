@@ -1,11 +1,13 @@
-/*global require, exports, module*/
+'use strict';
 
 var Cla55 = require('cla55'),
     Writer;
 
 Writer = Cla55.extend({
     constructor: function constructor(options) {
-        options || (options = {});
+        if (!options) {
+            options = {};
+        }
 
         this.options = {
             indent: options.indent || '    ',
@@ -54,11 +56,11 @@ Writer = Cla55.extend({
     },
 
     lineBreak: function lineBreak() {
-        var lineBreak = this.option('lineBreak'),
+        var lineBreakVal = this.option('lineBreak'),
             i = 0;
 
         // Prevent double line breaks
-        if (this._content.substr(this._content.length - lineBreak.length, lineBreak.length) === lineBreak) {
+        if (this._content.substr(this._content.length - lineBreakVal.length, lineBreakVal.length) === lineBreakVal) {
             return this;
         }
 

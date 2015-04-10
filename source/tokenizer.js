@@ -1,4 +1,4 @@
-/*global require, exports, module*/
+'use strict';
 
 var Cla55 = require('cla55').create(Array),
     Token = require('./token'),
@@ -106,9 +106,9 @@ Tokenizer = Cla55.extend({
     },
 
     // Set token index / get token by index
-    token: function token(token) {
-        if (arguments.length && token) {
-            this.index = this.indexOf(token);
+    token: function token(tokenInstance) {
+        if (arguments.length && tokenInstance) {
+            this.index = this.indexOf(tokenInstance);
         }
 
         return this[this.index];
@@ -176,8 +176,8 @@ Tokenizer = Cla55.extend({
 
     // Export clean array of tokens
     toJSON: function toJSON() {
-        return this.map(function (token) {
-            return token.toJSON()
+        return this.map(function (tokenInstance) {
+            return tokenInstance.toJSON();
         });
     }
 }, {
@@ -220,7 +220,7 @@ Tokenizer.register('String', /^((?:"(?:[^"\\\\]*|\\\\["\\\\bfnrt\/]|\\\\u[0-9a-f
 Tokenizer.register('Number', /^((?:-?(?=[1-9]|0(?!\d))\d+(?:\.\d+)?(?:[eE][+-]?\d+)?))/);
 Tokenizer.register('Boolean', /^(true|false)/);
 Tokenizer.register('Identifier', /^[a-z0-9\-_]+/i);
-Tokenizer.register('Punctuator', function () {
+Tokenizer.register('Punctuator', (function () {
     var punctuators = ([
             '../',      // Data path parent
             '{#',       // Open helper
@@ -239,11 +239,11 @@ Tokenizer.register('Punctuator', function () {
             '='         // Attribute assign
         ]).map(function (punctuator) {
             return punctuator.replace(/([\.$?*|{}\(\)\[\]\\\/\+\^])/g, function (ch) {
-        		return '\\' + ch;
-        	});
+                return '\\' + ch;
+            });
         });
 
     return new RegExp('^(' + punctuators.join('|') + ')', '');
-}());
+}()));
 
 module.exports = Tokenizer;

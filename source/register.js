@@ -1,4 +1,4 @@
-/*global require, exports, module*/
+'use strict';
 
 var Cla55 = require('cla55'),
 
@@ -6,9 +6,9 @@ var Cla55 = require('cla55'),
 
     Parser = require('./parser'),
 
-	Register,
+    Register,
 
-	installed;
+    installed;
 
 Register = Cla55.extend({
     constructor: function (options) {
@@ -41,33 +41,32 @@ Register = Cla55.extend({
             }, this);
 
             // Notice it's installed
-            installed;
+            installed = true;
         } else {
             throw new Error('Require extensions is not supported in this environment.');
         }
     },
 
     transform: function (module, filename) {
-		var fs = require('fs'),
+        var fs = require('fs'),
 
-		    source = fs.readFileSync(filename, {
-				encoding: 'utf8'
-			}),
+            source = fs.readFileSync(filename, {
+                encoding: 'utf8'
+            }),
 
-			ast,
+            ast,
 
-			code;
+            code;
 
-		try {
-    		ast = this.Parser.parse(source);
-			code = '\'use strict\';\n\nmodule.exports = ' + this.Composer.compose(ast);
-		}
-		catch (error) {
-			throw new Error('Error transforming ' + filename + ' to VanDyke: ' + error.toString());
-		}
+        try {
+            ast = this.Parser.parse(source);
+            code = '\'use strict\';\n\nmodule.exports = ' + this.Composer.compose(ast);
+        } catch (error) {
+            throw new Error('Error transforming ' + filename + ' to VanDyke: ' + error.toString());
+        }
 
-		module._compile(code, filename);
-	}
+        module._compile(code, filename);
+    }
 });
 
 module.exports = Register;

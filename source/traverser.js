@@ -1,4 +1,4 @@
-/*global require, exports, module*/
+'use strict';
 
 var Cla55 = require('cla55'),
     Traverser;
@@ -55,7 +55,7 @@ Traverser = Cla55.extend({
                         this.traverse(child, visitor);
 
                         visitor.afterEach.call(this, node, key, i);
-                    }, this)
+                    }, this);
                 } else {
                     this.traverse(children, visitor);
                 }

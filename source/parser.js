@@ -1,4 +1,4 @@
-/*global require, exports, module*/
+'use strict';
 
 var Cla55 = require('cla55'),
     Tokenizer = require('./tokenizer'),
@@ -58,7 +58,9 @@ Parser = Cla55.extend({
     },
 
     createNode: function createNode(type, obj) {
-        obj || (obj = {});
+        if (!obj) {
+            obj = {};
+        }
 
         obj.type = type;
 
@@ -132,7 +134,7 @@ Parser = Cla55.extend({
     },
 
     detectIsText: function (token) {
-        return token.isNot('Punctuator') || token.hasNotValue(/(^(\{|\<)|(\>|\}))/);
+        return token.isNot('Punctuator') || token.hasNotValue(/(^(\{|<)|(>|\}))/);
     },
 
     Attribute: function Attribute() {

@@ -1,4 +1,4 @@
-/*global require, exports, module*/
+'use strict';
 
 var Cla55 = require('cla55'),
     Token;
@@ -12,7 +12,8 @@ Token = Cla55.extend({
     },
 
     hasValue: function hasValue() {
-        var value,
+        var match,
+            value,
             i,
             l;
 
@@ -35,7 +36,7 @@ Token = Cla55.extend({
     is: function is() {
         var notExpr = /^Not/,
             not,
-
+            match,
             name,
             i,
             l;

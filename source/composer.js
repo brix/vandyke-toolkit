@@ -1,4 +1,4 @@
-/*global require, exports, module*/
+'use strict';
 
 var Cla55 = require('cla55'),
 
@@ -169,7 +169,7 @@ Composer = Cla55.extend({
 
     Identifier: {
         enter: function (ctx, node) {
-            var parentType = ctx.parent().type
+            var parentType = ctx.parent().type;
 
             if (parentType === 'ElementOpening' || parentType === 'HelperOpening' || parentType === 'Data' || parentType === 'Listener') {
                 this.content().writeString(node.name);

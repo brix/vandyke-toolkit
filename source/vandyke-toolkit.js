@@ -1,4 +1,4 @@
-/*global require, exports, module*/
+'use strict';
 
 var VanDyke = require('vandyke'),
 
@@ -37,8 +37,6 @@ VanDykeToolkit = VanDyke.Runtime.extend({}, {
 
     // Toolkit shortcuts
     install: function (options) {
-        console.log(this)
-
         var register = new this.Register(options);
 
         register.install();
