@@ -1,8 +1,6 @@
 'use strict';
 
-var _ = require('lodash'),
-
-    factoryModuleDefintion = require('fmd'),
+var factoryModuleDefintion = require('fmd'),
 
     findRequires = require('find-requires');
 
@@ -72,7 +70,7 @@ module.exports = function (grunt) {
         });
 
         // Build packege modules
-        fmd.build(function (createdFiles) {
+        fmd.build(function () {
             done();
         });
 

@@ -106,12 +106,12 @@ Composer = Cla55.extend({
     },
 
     AST: {
-        enter: function (ctx, node) {
+        enter: function () {
             this.content()
                 .indentInc()
                 .indentInc();
         },
-        leave: function (ctx, node) {
+        leave: function () {
             var head = new Writer({
                     indent: this.option('indent'),
                     lineBreak: this.option('lineBreak')
@@ -178,7 +178,7 @@ Composer = Cla55.extend({
     },
 
     ElementOpening: {
-        enter: function (ctx, node) {
+        enter: function () {
             // Register use of component shortcut
             this.setProxy('component');
 
@@ -213,30 +213,30 @@ Composer = Cla55.extend({
     },
 
     ElementClosing: {
-        leave: function (ctx, node) {
+        leave: function () {
             this.content().write(')');
         }
     },
 
     Helper: {
-        enter: function (ctx, node) {
+        enter: function () {
             // Register use of helper shortcut
             this.setProxy('helper');
 
             this.content().write('helper(');
         },
-        leave: function (ctx, node) {
+        leave: function () {
             this.content().write(')');
         },
         body: {
-            before: function (ctx, node) {
+            before: function () {
                 this.content()
                     .write(', function () {')
                     .indentInc()
                     .lineBreak()
                     .write('return (');
             },
-            after: function (ctx, node) {
+            after: function () {
                 this.content()
                     .write(');')
                     .indentDec()
@@ -248,10 +248,10 @@ Composer = Cla55.extend({
 
     HelperOpening: {
         arguments: {
-            before: function (ctx, node) {
+            before: function () {
                 this.content().write(', [');
             },
-            after: function (ctx, node) {
+            after: function () {
                 this.content().write(']');
             }
         }
@@ -259,14 +259,14 @@ Composer = Cla55.extend({
 
     HelperAlternate: {
         body: {
-            before: function (ctx, node) {
+            before: function () {
                 this.content()
                     .write(', function () {')
                     .indentInc()
                     .lineBreak()
                     .write('return ');
             },
-            after: function (ctx, node) {
+            after: function () {
                 this.content()
                     .write(';')
                     .indentDec()
@@ -277,7 +277,7 @@ Composer = Cla55.extend({
     },
 
     Listener: {
-        enter: function (ctx, node) {
+        enter: function () {
             // Register use of listener shortcut
             this.setProxy('listener');
 
@@ -289,7 +289,7 @@ Composer = Cla55.extend({
     },
 
     Data: {
-        enter: function (ctx, node) {
+        enter: function () {
             // Register use of data shortcut
             this.setProxy('data');
 
@@ -313,22 +313,22 @@ Composer = Cla55.extend({
     },
 
     Expression: {
-        enter: function (ctx, node) {
+        enter: function () {
             this.content().write('');
         },
-        leave: function (ctx, node) {
+        leave: function () {
             this.content().write('');
         }
     },
 
     Concat: {
-        enter: function (ctx, node) {
+        enter: function () {
             // Register use of concat shortcut
             this.setProxy('concat');
 
             this.content().write('concat(');
         },
-        leave: function (ctx, node) {
+        leave: function () {
             this.content().write(')');
         },
         concat: {
@@ -341,7 +341,7 @@ Composer = Cla55.extend({
     },
 
     List: {
-        enter: function (ctx, node) {
+        enter: function () {
             // Register use of list shortcut
             this.setProxy('list');
 
@@ -350,7 +350,7 @@ Composer = Cla55.extend({
                 .lineBreak()
                 .indentInc();
         },
-        leave: function (ctx, node) {
+        leave: function () {
             this.content()
                 .indentDec()
                 .lineBreak()
@@ -366,7 +366,7 @@ Composer = Cla55.extend({
     },
 
     Block: {
-        enter: function (ctx, node) {
+        enter: function (ctx) {
             if (ctx.parent().type !== 'Element') {
                 // Register use of block shortcut
                 this.setProxy('block');
@@ -378,7 +378,7 @@ Composer = Cla55.extend({
                 .lineBreak()
                 .indentInc();
         },
-        leave: function (ctx, node) {
+        leave: function (ctx) {
             this.content()
                 .indentDec()
                 .lineBreak();
@@ -388,7 +388,7 @@ Composer = Cla55.extend({
             }
         },
         body: {
-            beforeEach: function (ctx, node, i) {
+            beforeEach: function () {
                 this.content().write(', ');
             }
         }

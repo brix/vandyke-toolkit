@@ -5,7 +5,7 @@ var Cla55 = require('cla55').create(Array),
     Tokenizer;
 
 Tokenizer = Cla55.extend({
-    constructor: function constructor(content) {
+    constructor: function constructor() {
         this.index = -1;
     },
 
@@ -33,7 +33,6 @@ Tokenizer = Cla55.extend({
     _parseLine: function (pos, line) {
         var text = null,
             type,
-            match,
             i,
             l;
 

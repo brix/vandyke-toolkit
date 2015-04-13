@@ -56,8 +56,7 @@ Writer = Cla55.extend({
     },
 
     lineBreak: function lineBreak() {
-        var lineBreakVal = this.option('lineBreak'),
-            i = 0;
+        var lineBreakVal = this.option('lineBreak');
 
         // Prevent double line breaks
         if (this._content.substr(this._content.length - lineBreakVal.length, lineBreakVal.length) === lineBreakVal) {

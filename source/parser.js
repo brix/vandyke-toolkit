@@ -113,11 +113,11 @@ Parser = Cla55.extend({
         return token.is('Boolean');
     },
 
-    detectIsConcat: function (token) {
+    detectIsConcat: function () {
         return this.option('._ctx_attribute');
     },
 
-    detectIsList: function (token) {
+    detectIsList: function () {
         return !this.option('._ctx_attribute');
     },
 
@@ -241,8 +241,9 @@ Parser = Cla55.extend({
 
     Block: function Block() {
         var node = this.createNode('Block'),
-            token = this.findNextNotEmpty(true).token(),
             childNode;
+
+        this.findNextNotEmpty(true);
 
         node.body = [];
 
@@ -594,8 +595,9 @@ Parser = Cla55.extend({
 
     List: function List() {
         var node = this.createNode('List'),
-            token = this.findNextNotEmpty(true).token(),
             childNode;
+
+        this.findNextNotEmpty(true);
 
         node.list = [];
 
@@ -669,10 +671,7 @@ Parser = Cla55.extend({
     Text: function Text() {
         var node = this.createNode('Text'),
             token = this.token(),
-            snippets = [],
-
-            // Loop variables
-            i, l, snippet;
+            snippets = [];
 
         // Read prev token
         token = this.prev().token();
