@@ -1,4 +1,10 @@
-# Vandyke
+# [ALPHA] VanDyke Toolkit 
+
+## Intro
+
+VanDyke Toolkit is development library for the VanDyke template engine and still under development with a first ALPHA release.
+
+Test cases and more detailed documentation are on the way ...
 
 ## Template markup
 
