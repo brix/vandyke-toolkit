@@ -25,7 +25,17 @@ module.exports = function (grunt) {
                         return 'typeof exports === \'object\'';
                     },
                     function () {
-                        return '// CommonJS\n' + this.factory() + '(require, exports, module);';
+                        var requires = this.getModule().require,
+							depends = [];
+
+    					// Compose dependencies
+    					requires.forEach(function (require) {
+        					if (['require', 'exports', 'module'].indexOf(require) > -1) {
+    						    depends.push(require);
+                            }
+    					});
+
+                        return '// CommonJS\n' + this.factory() + '(' + depends.join(', ') + ');';
                     }
                 )
                 .factory(
@@ -45,9 +55,9 @@ module.exports = function (grunt) {
                 requires = findRequires(source),
                 conf = {
                     depends: {
-                        'require': 'require',
+                        'module': 'module',
                         'exports': 'exports',
-                        'module': 'module'
+                        'require': 'require'
                     }
                 };
 
