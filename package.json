@@ -1,19 +1,19 @@
 {
-  "name": "vandyke-tools",
+  "name": "vandyke-toolkit",
   "version": "0.0.0",
-  "description": "Runtime of VanDyke template engine for React",
+  "description": "Toolkit for the VanDyke template engine",
   "license": "MIT",
   "author": {
     "name": "Evan Vosberg",
     "email": "evanvosberg@inext.me"
   },
-  "homepage": "https://github.com/brix/vandyke-tools",
+  "homepage": "https://github.com/brix/vandyke-toolkit",
   "repository": {
     "type": "git",
-    "url": "https://github.com/brix/vandyke-tools.git"
+    "url": "https://github.com/brix/vandyke-toolkit.git"
   },
   "bugs": {
-    "url": "https://github.com/brix/vandyke-tools/issues"
+    "url": "https://github.com/brix/vandyke-toolkit/issues"
   },
   "main": "vandyke-toolkit.js",
   "keywords": [
