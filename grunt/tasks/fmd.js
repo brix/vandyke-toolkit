@@ -25,15 +25,17 @@ module.exports = function (grunt) {
                         return 'typeof exports === \'object\'';
                     },
                     function () {
-                        var requires = this.getModule().require,
-							depends = [];
+                        var mod = this.getModule(),
+                            depends = [];
 
-    					// Compose dependencies
-    					requires.forEach(function (require) {
-        					if (['require', 'exports', 'module'].indexOf(require) > -1) {
-    						    depends.push(require);
-                            }
-    					});
+                        // Compose dependencies
+                        depends = mod.require
+                            .filter(function (req, i) {
+                                return mod.arguments[i];
+                            })
+                            .map(function (req) {
+                                return ['require', 'exports', 'module'].indexOf(req) > -1 ? req : 'null';
+                            });
 
                         return '// CommonJS\n' + this.factory() + '(' + depends.join(', ') + ');';
                     }
@@ -52,7 +54,7 @@ module.exports = function (grunt) {
         this.files.forEach(function (file) {
             var path = file.src[0],
                 source = grunt.file.read(path).toString(),
-                requires = findRequires(source),
+                reqs = findRequires(source),
                 conf = {
                     depends: {
                         'module': 'module',
@@ -61,7 +63,7 @@ module.exports = function (grunt) {
                     }
                 };
 
-            requires.forEach(function (modulePath) {
+            reqs.forEach(function (modulePath) {
                 // Skip native node js module
                 if (['fs'].indexOf(modulePath) !== -1) {
                     return;
