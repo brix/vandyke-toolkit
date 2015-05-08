@@ -46,7 +46,8 @@ module.exports = function (grunt) {
     grunt.registerTask('default', 'Run code checker', [
         'jsonlint:dev',
         'jshint:dev',
-        'jscs:dev'
+        'jscs:dev',
+        'mochaTest:test'
     ]);
 
 };

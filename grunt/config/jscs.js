@@ -9,7 +9,6 @@ module.exports = {
             src: [
                 '<%= meta.cwdAll %>.js',
                 '!<%= meta.buildAll %>',
-                '!<%= meta.testAll %>',
                 '!<%= meta.npmAll %>'
             ]
         }
