@@ -138,8 +138,8 @@ Parser = Cla55.extend({
     },
 
     Attribute: function Attribute() {
-        var node = this.createNode('Property'),
-            token = this.token();
+        var token = this.token(),
+            node;
 
         // Expect white space
         if (token.isNot('Empty')) {
@@ -150,32 +150,38 @@ Parser = Cla55.extend({
         token = this.findNextNotEmpty().token();
 
         // Expect identifier
-        this.expect(token.is('Identifier'));
+        this.expect(token.is('Identifier') || (token.is('Punctuator') && token.hasValue('{')));
 
-        // Check whether the attribute is an event listener
-        this.option('._ctx_listener', token.hasValue(/^on/));
+        if (token.is('Identifier')) {
+            node = this.createNode('Property');
 
-        // Get name identifier
-        node.name = this.Identifier();
+            // Check whether the attribute is an event listener
+            this.option('._ctx_listener', token.hasValue(/^on/));
 
-        // Read token
-        token = this.token();
+            // Get name identifier
+            node.name = this.Identifier();
 
-        if (token.is('Punctuator') && token.hasValue('=')) {
-            // Attribute with value
-            this.next();
+            // Read token
+            token = this.token();
 
-            // Detect value
-            node.value = this.detect('String', 'Expression');
+            if (token.is('Punctuator') && token.hasValue('=')) {
+                // Attribute with value
+                this.next();
 
-            this.expect(node.value);
+                // Detect value
+                node.value = this.detect('String', 'Expression');
+
+                this.expect(node.value);
+            } else {
+                // Attribute without value
+                node.value = null;
+            }
+
+            // Clear listener context
+            this.option('._ctx_listener', false);
         } else {
-            // Attribute without value
-            node.value = null;
+            node = this.Expression();
         }
-
-        // Clear listener context
-        this.option('._ctx_listener', false);
 
         return node;
     },
