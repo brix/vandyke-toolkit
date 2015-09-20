@@ -3,10 +3,6 @@
   "version": "0.0.1",
   "description": "Toolkit for the VanDyke template engine",
   "license": "MIT",
-  "author": {
-    "name": "Evan Vosberg",
-    "email": "evanvosberg@urban.to"
-  },
   "homepage": "https://github.com/brix/vandyke-toolkit",
   "repository": {
     "type": "git",
@@ -23,5 +19,6 @@
   "dependencies": {
     "cla55": "~0.1.3",
     "vandyke": "0.0.0"
-  }
+  },
+  "ignore": []
 }
