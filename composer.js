@@ -4,11 +4,11 @@
         factory(require, exports, module);
     } else if (typeof define === 'function' && define.amd) {
         // AMD
-        define(['module', 'exports', 'require', 'cla55', './writer', './traverser'], factory);
+        define(['require', 'exports', 'module', 'cla55', './writer', './traverser'], factory);
     } else {
         console && console.error('Unsupported module environment.'); // jshint ignore:line
     }
-}(this, function (module, exports, require) {
+}(this, function (require, exports, module) {
 
     'use strict';
 
@@ -205,20 +205,45 @@
             },
             attributes: {
                 before: function (ctx, node) {
-                    if (node.attributes.length >= 1) {
-                        this.content().write(', {');
+                    var hasExpression = node.attributes.filter(function (child) {
+                            return child.type === 'Expression';
+                        }).length > 0;
+
+                    if (hasExpression) {
+                        this.option('.attributes_spread', true);
+
+                        // Register use of component shortcut
+                        this.setProxy('spread');
+
+                        this.content().write(', spread(');
+                    } else if (node.attributes.length >= 1) {
+                        this.content().write(',');
                     } else {
                         this.content().write(', null');
                     }
                 },
                 beforeEach: function (ctx, node, i) {
+                    // Separation comma
                     if (i) {
                         this.content().write(', ');
                     }
+
+                    // Open object for properties
+                    if (node.attributes[i].type === 'Property' && (!node.attributes[i - 1] || node.attributes[i - 1].type !== 'Property')) {
+                        this.content().write('{');
+                    }
                 },
-                after: function (ctx, node) {
-                    if (node.attributes.length >= 1) {
+                afterEach: function (ctx, node, i) {
+                    // Close object for properties
+                    if (node.attributes[i].type === 'Property' && (!node.attributes[i + 1] || node.attributes[i + 1].type !== 'Property')) {
                         this.content().write('}');
+                    }
+                },
+                after: function () {
+                    if (this.option('.attributes_spread')) {
+                        this.content().write(')');
+
+                        this.option('.attributes_spread', false);
                     }
                 }
             }

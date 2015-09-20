@@ -4,11 +4,11 @@
         factory(require, exports, module);
     } else if (typeof define === 'function' && define.amd) {
         // AMD
-        define(['module', 'exports', 'require', 'cla55', './token'], factory);
+        define(['require', 'exports', 'module', 'cla55', './token'], factory);
     } else {
         console && console.error('Unsupported module environment.'); // jshint ignore:line
     }
-}(this, function (module, exports, require) {
+}(this, function (require, exports, module) {
 
     'use strict';
 

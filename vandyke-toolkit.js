@@ -4,11 +4,11 @@
         factory(require, exports, module);
     } else if (typeof define === 'function' && define.amd) {
         // AMD
-        define(['module', 'exports', 'require', 'vandyke', './composer', './parser', './register', './token', './tokenizer', './traverser', './writer'], factory);
+        define(['require', 'exports', 'module', 'vandyke', './composer', './parser', './register', './token', './tokenizer', './traverser', './writer'], factory);
     } else {
         console && console.error('Unsupported module environment.'); // jshint ignore:line
     }
-}(this, function (module, exports, require) {
+}(this, function (require, exports, module) {
 
     'use strict';
 

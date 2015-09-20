@@ -1,11 +1,11 @@
 {
   "name": "vandyke-toolkit",
-  "version": "0.0.0",
+  "version": "0.0.1",
   "description": "Toolkit for the VanDyke template engine",
   "license": "MIT",
   "author": {
     "name": "Evan Vosberg",
-    "email": "evanvosberg@inext.me"
+    "email": "evanvosberg@urban.to"
   },
   "homepage": "https://github.com/brix/vandyke-toolkit",
   "repository": {
